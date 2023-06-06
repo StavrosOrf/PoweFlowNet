@@ -40,7 +40,7 @@ class PowerFlowData(InMemoryDataset):
     }
     def __init__(self, 
                 root: str, 
-                case: int = 14, 
+                case: str = '14', 
                 split: Optional[List[float]] = None, 
                 task: str = "train", 
                 transform: Optional[Callable] = None, 

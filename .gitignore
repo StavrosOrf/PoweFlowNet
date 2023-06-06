@@ -162,4 +162,11 @@ cython_debug/
 # Numpy datasets
 data/
 
+# VSCode
 .DS_Store
+.vscode/
+
+# Saved models and logs
+logs/
+models/
+results/

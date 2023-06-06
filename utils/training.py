@@ -1,10 +1,27 @@
 from typing import Callable, Optional, List, Tuple, Union
+import os
+import json
 
 import torch
 from torch_geometric.loader import DataLoader
 from torch.optim.optimizer import Optimizer
 from torch.optim.lr_scheduler import LRScheduler
 import torch.nn as nn
+
+def append_to_json(log_path, run_id, result):
+    log_entry = {str(run_id): result}
+
+    os.makedirs(os.path.dirname(log_path), exist_ok=True)
+    file_exists = os.path.isfile(log_path)
+    try:
+        with open(log_path, "r") as json_file:
+            exist_log = json.load(json_file)
+    except FileNotFoundError:
+        exist_log = {}
+    with open(log_path, "w") as json_file:
+        exist_log.update(log_entry)
+        json.dump(exist_log, json_file, indent=4)
+
 
 def train_epoch(
         model: nn.Module, 
@@ -42,3 +59,15 @@ def train_epoch(
     
     mean_loss = total_loss / num_samples
     return mean_loss
+
+def main():
+    log_path = 'logs/save_logs.json'
+    run_id = 'arb_id_01'
+    result = {
+        'train_loss': 0.3,
+        'val_loss': 0.2,
+    }
+    append_to_json(log_path, run_id, result)
+    
+if __name__ == '__main__':
+    main()
