@@ -5,14 +5,13 @@ import matplotlib.pyplot as plt
 import numpy as np
 import torch
 
-log_dir = 'logs'
+LOG_DIR = 'logs'
 
 def main():
+    run_id = '20230606-1194'
+    TRAIN_LOG_PATH = os.path.join(LOG_DIR, 'train_log/train_log_'+run_id+'.pt')
     try:
-        files = os.listdir(log_dir)
-        files = [file for file in files if file.endswith('.pt') and file.startswith('train_log')]
-        latest_log_file = sorted(files)[-1]
-        train_log = torch.load(os.path.join(log_dir, latest_log_file), map_location=torch.device('cpu'))
+        train_log = torch.load(TRAIN_LOG_PATH, map_location=torch.device('cpu'))
     except FileNotFoundError:
         print("File not found. terminating program.")
         return 1
@@ -25,7 +24,7 @@ def main():
     ax.set_ylabel('Loss')
     ax.set_title('Loss vs Epoch')
     ax.legend()
-    plt.savefig('results/'+latest_log_file.split('.')[0]+'_loss_vs_epoch.png')
+    plt.savefig('results/'+run_id+'_loss_vs_epoch.png')
     plt.show()
     plt.close()
     

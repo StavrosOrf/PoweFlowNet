@@ -2,12 +2,34 @@
     - evaluation_epoch - evaluate performance over a whole epoch
     - other evaluation metrics function [NotImplemented]
 """
-from typing import Callable
+from typing import Callable, Optional, Union, Tuple
+import os
 
 import torch
 from torch_geometric.loader import DataLoader
 from torch.optim.optimizer import Optimizer
 import torch.nn as nn
+
+LOG_DIR = 'logs'
+SAVE_DIR = 'models'
+
+def load_model(
+        model: nn.Module, 
+        run_id: str, 
+        device: Union[str, torch.device]
+    ) -> Tuple[nn.Module, dict]:
+    SAVE_MODEL_PATH = os.path.join(SAVE_DIR, 'model_'+run_id+'.pt')
+    if type(device) == str:
+        device = torch.device(device)
+    
+    try:
+        saved = torch.load(SAVE_MODEL_PATH, map_location=device)
+        model.load_state_dict(saved['model_state_dict'])
+    except FileNotFoundError:
+        print("File not found. Could not load saved model.")
+        return -1
+    
+    return model, saved
 
 def num_params(model: nn.Module) -> int:
     """
