@@ -8,12 +8,14 @@ from tqdm import tqdm
 
 from datasets.PowerFlowData import PowerFlowData
 from networks.MPN import MPN
+from utils.argument_parser import argument_parser
 from utils.training import train_epoch
 from utils.evaluation import evaluate_epoch
 
 def main():
-    # Step 0: Prepare
-    num_epochs = 2
+    # Step 0: Parse Arguments and Setup
+    args = argument_parser()
+    num_epochs = args.num_epochs
     loss_fn = torch.nn.MSELoss()
     lr = 1e-3
     
