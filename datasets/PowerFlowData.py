@@ -14,6 +14,33 @@ import matplotlib.pyplot as plt
 
 from torch_geometric.datasets import Planetoid
 
+feature_names_x = [
+    'index',                # -
+    'type',                 # -   
+    'voltage magnitude',    # --- this matters
+    'volatge angle',        # --- this matters
+    'Pd',                   # --- this matters, difference between Pg and Pd matters
+    'Qd',                   # --- this matters
+    'Gs',                   # - equivalent to Pd, Qd
+    'Bs',                   # - equivalent to Pd, Qd
+    'Pg'                    # --- this matters, difference between Pg and Pd matters
+]
+
+feature_names_y = [
+    'index',                # -
+    'type',                 # -
+    'voltage magnitude',    # --- we care about this
+    'voltage angle',        # --- we care about this
+    'active power',         # --- we care about this
+    'reactive power',       # --- we care about this
+    'Gs',                   # -
+    'Bs'                    # -
+]
+
+def select_features(data: Data) -> Data:
+    "select only the features we care about"
+    
+
 class PowerFlowData(InMemoryDataset):
     """PowerFlowData(InMemoryDataset)
 
