@@ -126,6 +126,7 @@ class PowerFlowData(InMemoryDataset):
         # where x and y are unequal, the network must predict
         unequal = (data.x[:,4:] != data.y).float() # 1 where value changed, 0 where it did not change
         data.x = torch.concat([data.x, unequal], dim=1)
+        data.prediction_mask = unequal
 
         return data, slices, unequal
         
