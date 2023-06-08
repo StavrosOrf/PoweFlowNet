@@ -86,6 +86,10 @@ class PowerFlowData(InMemoryDataset):
     
     def get_data_dimensions(self):
         return self[0].x.shape[1], self[0].y.shape[1], self[0].edge_attr.shape[1]
+    
+    def get_data_means_stds(self):
+        assert self.normalize == True
+        return self.xymean, self.xystd, self.edgemean, self.edgestd
 
     def _normalize_dataset(self, data, slices) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         if not self.normalize:
@@ -109,11 +113,13 @@ class PowerFlowData(InMemoryDataset):
         xy = torch.concat([data.x[:,4:], data.y], dim=0)
         mean = torch.mean(xy, dim=0).unsqueeze(dim=0).expand(data.x.shape[0], 6)# 6 for:
         std = torch.std(xy, dim=0).unsqueeze(dim=0).expand(data.x.shape[0], 6)#   Vm, Va, Pd, Qd, Gs, Bs
+        self.xymean, self.xystd = mean, std
         data.x[:,4:] = (data.x[:,4:] - mean) / (std + 0.1) # + 0.1 to avoid NaN's because of division by zero
         data.y = (data.y - mean) / (std + 0.1)
         # for edge attributes
         mean = torch.mean(data.edge_attr, dim=0).unsqueeze(dim=0).expand(data.edge_attr.shape[0], data.edge_attr.shape[1])
         std = torch.std(data.edge_attr, dim=0).unsqueeze(dim=0).expand(data.edge_attr.shape[0], data.edge_attr.shape[1])
+        self.edgemean, self.edgestd = mean, std
         data.edge_attr = (data.edge_attr - mean) / (std + 0.1)
 
         ## adding the mask
