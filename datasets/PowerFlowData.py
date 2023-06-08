@@ -18,7 +18,7 @@ feature_names_x = [
     'index',                # -
     'type',                 # -   
     'voltage magnitude',    # --- this matters
-    'volatge angle',        # --- this matters
+    'voltage angle',        # --- this matters
     'Pd',                   # --- this matters, difference between Pg and Pd matters
     'Qd',                   # --- this matters
     'Gs',                   # - equivalent to Pd, Qd
@@ -72,14 +72,56 @@ class PowerFlowData(InMemoryDataset):
                 task: str = "train", 
                 transform: Optional[Callable] = None, 
                 pre_transform: Optional[Callable] = None, 
-                pre_filter: Optional[Callable] = None):
+                pre_filter: Optional[Callable] = None,
+                normalize=True):
         assert len(split) == 3
         assert task in ["train", "val", "test"]
+        self.normalize = normalize
         self.case = case # THIS MUST BE EXECUTED BEFORE super().__init__() since it is used in raw_file_names and processed_file_names
         self.split = split
         self.task = task
         super().__init__(root, transform, pre_transform, pre_filter)
-        self.data, self.slices = torch.load(self.processed_paths[0]) # necessary, do not forget!
+        self.data, self.slices, self.mask = self._normalize_dataset(*torch.load(self.processed_paths[0])) # necessary, do not forget!
+        self.mask = torch.tensor([])
+    
+    def get_data_dimensions(self):
+        return self[0].x.shape[1], self[0].y.shape[1], self[0].edge_attr.shape[1]
+
+    def _normalize_dataset(self, data, slices) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+        if not self.normalize:
+            return data, slices, torch.tensor([]) # TODO an actual mask, perhaps never necessary though
+        
+        ## selecting the right features
+        # for x
+        data.x[:,4] = data.x[:,4] - data.x[:,8] # Pd = Pd - Pg
+        # + 3 for the one-hot encoding for four node types, -2 because we remove the index and Pg
+        template = torch.zeros((data.x.shape[0], data.x.shape[1] + 3 - 2))
+        template[:,0:4] = torch.nn.functional.one_hot(data.x[:,1].type(torch.int64))
+        template[:,4:10] = data.x[:,2:8]
+        data.x = template
+        # for y
+        data.y = data.y[:,2:]
+
+        # SHAPE NOW: torch.Size([14, 10]) torch.Size([14, 6]) for x and y
+
+        ## normalizing
+        # for node attributes
+        xy = torch.concat([data.x[:,4:], data.y], dim=0)
+        mean = torch.mean(xy, dim=0).unsqueeze(dim=0).expand(data.x.shape[0], 6)# 6 for:
+        std = torch.std(xy, dim=0).unsqueeze(dim=0).expand(data.x.shape[0], 6)#   Vm, Va, Pd, Qd, Gs, Bs
+        data.x[:,4:] = (data.x[:,4:] - mean) / (std + 0.1) # + 0.1 to avoid NaN's because of division by zero
+        data.y = (data.y - mean) / (std + 0.1)
+        # for edge attributes
+        mean = torch.mean(data.edge_attr, dim=0).unsqueeze(dim=0).expand(data.edge_attr.shape[0], data.edge_attr.shape[1])
+        std = torch.std(data.edge_attr, dim=0).unsqueeze(dim=0).expand(data.edge_attr.shape[0], data.edge_attr.shape[1])
+        data.edge_attr = (data.edge_attr - mean) / (std + 0.1)
+
+        ## adding the mask
+        # where x and y are unequal, the network must predict
+        unequal = (data.x[:,4:] != data.y).float() # 1 where value changed, 0 where it did not change
+        data.x = torch.concat([data.x, unequal], dim=1)
+
+        return data, slices, unequal
         
     @property
     def raw_file_names(self) -> List[str]:

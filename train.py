@@ -44,10 +44,11 @@ def main():
     test_loader = DataLoader(testset, batch_size=128, shuffle=False)
     
     # Step 2: Create model and optimizer (and scheduler)
+    node_in_dim, node_out_dim, edge_dim = trainset.get_data_dimensions()
     model = MPN(
-        nfeature_dim=9, 
-        efeature_dim=5, 
-        output_dim=8, 
+        nfeature_dim=node_in_dim, 
+        efeature_dim=edge_dim, 
+        output_dim=node_out_dim, 
         hidden_dim=64, 
         n_gnn_layers=3, 
         K=3, 

@@ -18,10 +18,11 @@ def main():
     
     testset = PowerFlowData(root='data', case='14', split=[.5, .2, .3], task='test')
     
+    node_in_dim, node_out_dim, edge_dim = testset.get_data_dimensions()
     model = MPN(
-        nfeature_dim=9, 
-        efeature_dim=5, 
-        output_dim=8, 
+        nfeature_dim=node_in_dim, 
+        efeature_dim=edge_dim, 
+        output_dim=node_out_dim, 
         hidden_dim=64, 
         n_gnn_layers=3, 
         K=3, 
