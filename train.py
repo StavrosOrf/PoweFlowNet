@@ -8,7 +8,7 @@ from torch_geometric.loader import DataLoader
 
 from tqdm import tqdm
 
-from datasets.PowerFlowData import PowerFlowData
+from datasets.PowerFlowData import PowerFlowData, select_features
 from networks.MPN import MPN
 from utils.argument_parser import argument_parser
 from utils.training import train_epoch, append_to_json
@@ -36,20 +36,23 @@ def main():
     # torch.backends.cudnn.benchmark = False
     
     # Step 1: Load data
-    trainset = PowerFlowData(root='data', case='14', split=[.5, .2, .3], task='train')
-    valset = PowerFlowData(root='data', case='14', split=[.5, .2, .3], task='val')
-    testset = PowerFlowData(root='data', case='14', split=[.5, .2, .3], task='test')
+    trainset = PowerFlowData(root='~/data/volume_2/power_flow_dataset', case='14', split=[.5, .2, .3], task='train', 
+                             transform=select_features((2,3,4,5), (2,3,4,5)))
+    valset = PowerFlowData(root='~/data/volume_2/power_flow_dataset', case='14', split=[.5, .2, .3], task='val', 
+                           transform=select_features((2,3,4,5), (2,3,4,5)))
+    testset = PowerFlowData(root='~/data/volume_2/power_flow_dataset', case='14', split=[.5, .2, .3], task='test', 
+                            transform=select_features((2,3,4,5), (2,3,4,5)))
     train_loader = DataLoader(trainset, batch_size=128, shuffle=True)
     val_loader = DataLoader(valset, batch_size=128, shuffle=False)
     test_loader = DataLoader(testset, batch_size=128, shuffle=False)
     
     # Step 2: Create model and optimizer (and scheduler)
     model = MPN(
-        nfeature_dim=9, 
+        nfeature_dim=4, 
         efeature_dim=5, 
-        output_dim=8, 
+        output_dim=4, 
         hidden_dim=64, 
-        n_gnn_layers=3, 
+        n_gnn_layers=6, 
         K=3, 
         dropout_rate=0.5
     ).to(device) # 40k params
@@ -104,8 +107,8 @@ def main():
     print(f"Final Test loss: {test_loss:.4f}")
     
     # Step 5: Save results
+    os.makedirs(os.path.join(LOG_DIR, 'train_log'), exist_ok=True)
     if args.save:
-        os.makedirs(os.path.join(LOG_DIR, 'train_log'), exist_ok=True)
         append_to_json(
             SAVE_LOG_PATH,
             run_id,
