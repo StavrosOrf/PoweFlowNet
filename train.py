@@ -13,6 +13,7 @@ from networks.MPN import MPN
 from utils.argument_parser import argument_parser
 from utils.training import train_epoch, append_to_json
 from utils.evaluation import evaluate_epoch
+from utils.custom_loss_functions import Masked_L2_loss
 
 import wandb
 
@@ -28,7 +29,7 @@ def main():
     SAVE_MODEL_PATH = os.path.join(SAVE_DIR, 'model_'+run_id+'.pt')
 
     num_epochs = args.num_epochs
-    loss_fn = torch.nn.MSELoss()
+    loss_fn = Masked_L2_loss()
     lr = args.lr
     batch_size = args.batch_size
     grid_case = args.case
@@ -75,7 +76,8 @@ def main():
                                                            patience=5,
                                                            verbose=True)
 
-    # Step 3: Train model    
+    # Step 3: Train model
+    best_train_loss = 10000.
     best_val_loss = 10000.
     saved_test_loss = 10000.
     train_log = {
@@ -86,7 +88,8 @@ def main():
         'test': {
             'loss': []}
     }
-    for epoch in tqdm(range(num_epochs), position=0, leave=True):
+    pbar = tqdm(range(num_epochs), total=num_epochs, position=0, leave=True)
+    for epoch in pbar:
         train_loss = train_epoch(
             model, train_loader, loss_fn, optimizer, device)
         val_loss = evaluate_epoch(model, val_loader, loss_fn, device)
@@ -95,11 +98,13 @@ def main():
         train_log['train']['loss'].append(train_loss)
         train_log['val']['loss'].append(val_loss)
         train_log['test']['loss'].append(test_loss)
-        print(
-            f"Epoch {epoch+1}/{num_epochs}: train_loss={train_loss:.4f}, val_loss={val_loss:.4f}, test_loss={test_loss:.4f}")
+
         if log_to_wandb:
             wandb.log({'train_loss': train_loss,
                       'val_loss': val_loss, 'test_loss': test_loss})
+
+        if train_loss < best_train_loss:
+            best_train_loss = train_loss
 
         if val_loss < best_val_loss:
             best_val_loss = val_loss
@@ -115,11 +120,17 @@ def main():
                 os.makedirs('models', exist_ok=True)
                 torch.save(_to_save, SAVE_MODEL_PATH)
 
-        print(f"Best validation loss: {best_val_loss:.4f}")
+        pbar.set_description(
+            f"Epoch {epoch+1} {num_epochs}: train_loss={train_loss:.4f}, val_loss={val_loss:.4f}, test_loss={test_loss:.4f}, best_test_loss={saved_test_loss:.4f}, best_val_loss={best_val_loss:.4f}")
+
+    print(f"Best validation loss: {best_val_loss:.4f}")
 
     # Step 4: Evaluate model
-    test_loss = evaluate_epoch(model, test_loader, loss_fn, device)
-    print(f"Test loss: {best_val_loss:.4f}")
+    if args.save:
+        _to_load = torch.load(SAVE_MODEL_PATH)
+        model.load_state_dict(_to_load['model_state_dict'])
+        test_loss = evaluate_epoch(model, test_loader, loss_fn, device)
+        print(f"Test loss: {best_val_loss:.4f}")
 
     # Step 5: Save results
     if args.save:
