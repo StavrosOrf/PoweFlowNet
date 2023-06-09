@@ -122,16 +122,16 @@ class PowerFlowData(InMemoryDataset):
         std = torch.std(xy, dim=0).unsqueeze(dim=0).expand(
             data.x.shape[0], 6)  # Vm, Va, Pd, Qd, Gs, Bs
         self.xymean, self.xystd = mean, std
-        # + 0.1 to avoid NaN's because of division by zero
-        data.x[:, 4:] = (data.x[:, 4:] - mean) / (std + 0.1)
-        data.y = (data.y - mean) / (std + 0.1)
+        # + 0.0000001 to avoid NaN's because of division by zero
+        data.x[:, 4:] = (data.x[:, 4:] - mean) / (std + 0.0000001)
+        data.y = (data.y - mean) / (std + 0.0000001)
         # for edge attributes
         mean = torch.mean(data.edge_attr, dim=0).unsqueeze(dim=0).expand(
             data.edge_attr.shape[0], data.edge_attr.shape[1])
         std = torch.std(data.edge_attr, dim=0).unsqueeze(dim=0).expand(
             data.edge_attr.shape[0], data.edge_attr.shape[1])
         self.edgemean, self.edgestd = mean, std
-        data.edge_attr = (data.edge_attr - mean) / (std + 0.1)
+        data.edge_attr = (data.edge_attr - mean) / (std + 0.0000001)
 
         # adding the mask
         # where x and y are unequal, the network must predict
