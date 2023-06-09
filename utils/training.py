@@ -7,6 +7,7 @@ from torch_geometric.loader import DataLoader
 from torch.optim.optimizer import Optimizer
 from torch.optim.lr_scheduler import LRScheduler
 import torch.nn as nn
+from tqdm import tqdm
 
 from utils.custom_loss_functions import Masked_L2_loss
 
@@ -50,7 +51,8 @@ def train_epoch(
     total_loss = 0.
     num_samples = 0
     model.train()
-    for data in loader:
+    pbar = tqdm(loader, total=len(loader), desc='Training')
+    for data in pbar:
         data = data.to(device)
         optimizer.zero_grad()
         out = model(data)

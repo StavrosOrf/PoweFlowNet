@@ -64,17 +64,23 @@ def main():
         nfeature_dim=node_in_dim,
         efeature_dim=edge_dim,
         output_dim=node_out_dim,
-        hidden_dim=16,
-        n_gnn_layers=2,
-        K=2,
-        dropout_rate=0.5
-    ).to(device)  # 40k params
-    optimizer = torch.optim.Adam(model.parameters(), lr=lr)
-    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer,
-                                                           mode='min',
-                                                           factor=0.5,
-                                                           patience=5,
-                                                           verbose=True)
+        hidden_dim=128,
+        n_gnn_layers=4,
+        K=3,
+        dropout_rate=0.2
+    ).to(device) 
+
+    #calculate model size
+    pytorch_total_params = sum(p.numel() for p in model.parameters())
+    print("Total number of parameters: ", pytorch_total_params)
+    
+    optimizer = torch.optim.AdamW(model.parameters(), lr=lr)
+    # scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer,
+    #                                                        mode='min',
+    #                                                        factor=0.5,
+    #                                                        patience=5,
+    #                                                        verbose=True)
+    scheduler = torch.optim.lr_scheduler.OneCycleLR(optimizer, max_lr=lr, steps_per_epoch=len(train_loader), epochs=num_epochs)
 
     # Step 3: Train model
     best_train_loss = 10000.
@@ -88,13 +94,13 @@ def main():
         'test': {
             'loss': []}
     }
-    pbar = tqdm(range(num_epochs), total=num_epochs, position=0, leave=True)
-    for epoch in pbar:
+    # pbar = tqdm(range(num_epochs), total=num_epochs, position=0, leave=True)
+    for epoch in range(num_epochs):
         train_loss = train_epoch(
             model, train_loader, loss_fn, optimizer, device)
         val_loss = evaluate_epoch(model, val_loader, loss_fn, device)
         test_loss = evaluate_epoch(model, test_loader, loss_fn, device)
-        scheduler.step(val_loss)
+        scheduler.step()
         train_log['train']['loss'].append(train_loss)
         train_log['val']['loss'].append(val_loss)
         train_log['test']['loss'].append(test_loss)
@@ -120,8 +126,7 @@ def main():
                 os.makedirs('models', exist_ok=True)
                 torch.save(_to_save, SAVE_MODEL_PATH)
 
-        pbar.set_description(
-            f"Epoch {epoch+1} {num_epochs}: train_loss={train_loss:.4f}, val_loss={val_loss:.4f}, test_loss={test_loss:.4f}, best_test_loss={saved_test_loss:.4f}, best_val_loss={best_val_loss:.4f}")
+        print(f"Epoch {epoch+1} / {num_epochs}: train_loss={train_loss:.4f}, val_loss={val_loss:.4f}, test_loss={test_loss:.4f}, best_test_loss={saved_test_loss:.4f}, best_val_loss={best_val_loss:.4f}")
 
     print(f"Best validation loss: {best_val_loss:.4f}")
 
