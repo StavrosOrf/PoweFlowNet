@@ -9,6 +9,7 @@ import torch
 from torch_geometric.loader import DataLoader
 from torch.optim.optimizer import Optimizer
 import torch.nn as nn
+from tqdm import tqdm
 
 from utils.custom_loss_functions import Masked_L2_loss
 
@@ -70,7 +71,8 @@ def evaluate_epoch(
     model.eval()
     total_loss = 0.
     num_samples = 0
-    for data in loader:
+    pbar = tqdm(loader, total=len(loader), desc='Evaluating:')
+    for data in pbar:
         data = data.to(device)
         out = model(data)
 
