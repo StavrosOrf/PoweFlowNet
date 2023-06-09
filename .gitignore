@@ -170,3 +170,4 @@ data/
 logs/
 models/
 results/
+wandb/
