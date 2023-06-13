@@ -64,6 +64,14 @@ feature_names_y = [
     'Gs',                   # -
     'Bs'         
 ]
+
+edge_feature_names = [
+    'r',                    # --- this matters, resistance, pu
+    'x',                    # --- this matters, reactance,  pu
+    'b',
+    'tau',
+    'angle'
+]
         
 
 class PowerFlowData(InMemoryDataset):
