@@ -4,10 +4,21 @@ import json
 
 def argument_parser():
     # config_parser = argparse.ArgumentParser(description='Argument parser for the project')
+    config_parser = argparse.ArgumentParser(
+        prog='PowerFlowNet',
+        description='parse json configs',
+        add_help=False) # a must because otherwise the child will have two help options
+    config_parser.add_argument('--cfg_json','--config','--configs', type=str)
+
+    parser = argparse.ArgumentParser(parents=[config_parser])
+    
     parser = argparse.ArgumentParser(
         prog='PowerFlowNet',
         description='train neural network for power flow approximation'
     )
+    
+    # Network Parameters
+    ...
     
     # Training parameters
     parser.add_argument('--num-epochs', type=int, default=100, help='Number of epochs to train for')
@@ -17,7 +28,22 @@ def argument_parser():
     parser.add_argument('--wandb', default=False, help='Enable wandb logging',action=argparse.BooleanOptionalAction)
     parser.add_argument('--save', default=True, action=argparse.BooleanOptionalAction)
     
+    # Step 0: Parse arguments in .json if specified 
+    #   Step 0.1 Check if .json file is specified
+    #   Step 0.2 Parse whatever is in .json file
+    args, left_argv = config_parser.parse_known_args() # if passed args BESIDES defined in cfg_parser, store in left_argv
+    if args.cfg_json is not None:
+        with open(args.cfg_json) as f:
+            json_dict = json.load(f)
+        # args.__dict__.update(json_dict) # does not guarantee arg format is correct
+        json_argv = []
+        for key, value in json_dict.items():
+            json_argv.append('--' + key)
+            json_argv.append(str(value))
+        parser.parse_known_args(json_argv, args)
     
-    args, left_argv = parser.parse_known_args()
+    # Step 1: Parse arguments in command line and override .json values 
+    parser.parse_args(left_argv, args) # override JSON values with command-line values
+
     
     return args

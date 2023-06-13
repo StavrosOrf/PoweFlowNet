@@ -14,21 +14,40 @@ import matplotlib.pyplot as plt
 
 from torch_geometric.datasets import Planetoid
 
-feature_names_x = [
-    'index',                # -
-    'type',                 # -
-    'voltage magnitude',    # --- this matters
-    'voltage angle',        # --- this matters
-    'Pd',                   # --- this matters, difference between Pg and Pd matters
-    'Qd',                   # --- this matters
-    'Gs',                   # - equivalent to Pd, Qd
-    'Bs',                   # - equivalent to Pd, Qd
-    'Pg'                    # --- this matters, difference between Pg and Pd matters
+ori_feature_names_x = [
+    'index',                # - removed
+    'type',                 # --- one-hot encoded,  0, 1, 2, 3
+    'voltage magnitude',    # --- this matters,     4, 
+    'voltage angle',        # --- this matters,     5,
+    'Pd',                   # --- this matters, preprocessed as Pd-Pg   6,
+    'Qd',                   # --- this matters                          7,
+    'Gs',                   # - equivalent to Pd, Qd                    8,
+    'Bs',                   # - equivalent to Pd, Qd                    9,
+    'Pg'                    # - removed
 ]
 
-feature_names_y = [
-    'index',                # -
-    'type',                 # -
+feature_names_x = [
+    'type_0',               # --- one-hot encoded,  0,
+    'type_1',               # --- one-hot encoded,  1,
+    'type_2',               # --- one-hot encoded,  2,
+    'type_3',               # --- one-hot encoded,  3,
+    'voltage magnitude',    # --- this matters,     4, 
+    'voltage angle',        # --- this matters,     5,
+    'Pd',                   # --- this matters, preprocessed as Pd-Pg   6,
+    'Qd',                   # --- this matters                          7,
+    'Gs',                   # - equivalent to Pd, Qd                    8,
+    'Bs',                   # - equivalent to Pd, Qd                    9,
+    'to_predict_voltage_magnitude', #               10,
+    'to_predict_voltage_angle',     #               11,
+    'to_predict_Pd',                #               12,
+    'to_predict_Qd'                 #               13,
+    'to_predict_Gs',                #               14,
+    'to_predict_Bs'                 #               15,
+]
+
+ori_feature_names_y = [
+    'index',                # - removed
+    'type',                 # - removed
     'voltage magnitude',    # --- we care about this
     'voltage angle',        # --- we care about this
     'active power',         # --- we care about this
@@ -37,25 +56,15 @@ feature_names_y = [
     'Bs'                    # -
 ]
 
-
-def select_features(dims_x: Tuple, dims_y: Tuple):
-    def select_features_given_dims(data: Data) -> Data:
-        "select only the features we care about"
-        data.x = data.x[:, dims_x]
-        data.y = data.y[:, dims_y]
+feature_names_y = [
+    'voltage magnitude',    # --- we care about this
+    'voltage angle',        # --- we care about this
+    'active power',         # --- we care about this
+    'reactive power',       # --- we care about this
+    'Gs',                   # -
+    'Bs'         
+]
         
-        return data
-    return select_features_given_dims
-
-def fuse_pd_pg(pd_dim: int, pg_dim: int) -> Callable:
-    def fuse_pd_pg_with_dims(data: Data) -> Data:
-        data.x[:, pd_dim] = data.x[:, pd_dim] - data.x[:, pg_dim]
-        data.x = data.x[:, :-1]
-        return data
-    
-    return fuse_pd_pg_with_dims
-    
-    
 
 class PowerFlowData(InMemoryDataset):
     """PowerFlowData(InMemoryDataset)
@@ -88,7 +97,7 @@ class PowerFlowData(InMemoryDataset):
                 split: Optional[List[float]] = None, 
                 task: str = "train", 
                 transform: Optional[Callable] = None, 
-                pre_transform: Optional[Callable] = fuse_pd_pg(4, 8), 
+                pre_transform: Optional[Callable] = None, 
                 pre_filter: Optional[Callable] = None,
                 normalize=True):
 
