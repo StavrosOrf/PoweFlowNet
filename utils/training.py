@@ -7,6 +7,10 @@ from torch_geometric.loader import DataLoader
 from torch.optim.optimizer import Optimizer
 from torch.optim.lr_scheduler import LRScheduler
 import torch.nn as nn
+from tqdm import tqdm
+
+from utils.custom_loss_functions import Masked_L2_loss
+
 
 def append_to_json(log_path, run_id, result):
     log_entry = {str(run_id): result}
@@ -24,12 +28,12 @@ def append_to_json(log_path, run_id, result):
 
 
 def train_epoch(
-        model: nn.Module, 
-        loader: DataLoader, 
-        loss_fn: Callable, 
-        optimizer: Optimizer, 
-        device: torch.device
-    ) -> float:
+    model: nn.Module,
+    loader: DataLoader,
+    loss_fn: Callable,
+    optimizer: Optimizer,
+    device: torch.device
+) -> float:
     """
     Trains a neural network model for one epoch using the specified data loader and optimizer.
 
@@ -47,18 +51,25 @@ def train_epoch(
     total_loss = 0.
     num_samples = 0
     model.train()
-    for data in loader:
+    pbar = tqdm(loader, total=len(loader), desc='Training')
+    for data in pbar:
         data = data.to(device)
         optimizer.zero_grad()
         out = model(data)
-        loss = loss_fn(out, data.y)
+
+        if isinstance(loss_fn, Masked_L2_loss):
+            loss = loss_fn(out, data.y, data.x[:, 10:])
+        else:
+            loss = loss_fn(out, data.y)
+
         loss.backward()
         optimizer.step()
         num_samples += len(data)
         total_loss += loss.item() * len(data)
-    
+
     mean_loss = total_loss / num_samples
     return mean_loss
+
 
 def main():
     log_path = 'logs/save_logs.json'
@@ -68,6 +79,7 @@ def main():
         'val_loss': 0.2,
     }
     append_to_json(log_path, run_id, result)
-    
+
+
 if __name__ == '__main__':
     main()
