@@ -83,7 +83,10 @@ class MPN(nn.Module):
         self.convs.append(TAGConv(hidden_dim, output_dim, K=K))
 
     def forward(self, data):
-        x = data.x
+        assert data.x.shape[-1] == self.nfeature_dim * 2 + 4 # features and their mask + one-hot node type embedding
+        x = data.x[:, 4:4+self.nfeature_dim] # first four features: node type. not elegant at all this way. just saying. 
+        input_x = x # problem if there is inplace operation on x, so pay attention
+        mask = data.x[:, -self.nfeature_dim:]# last few dimensions: mask.
         edge_index = data.edge_index
         edge_features = data.edge_attr
         

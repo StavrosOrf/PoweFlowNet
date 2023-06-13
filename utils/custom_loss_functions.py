@@ -23,11 +23,13 @@ class Masked_L2_loss(nn.Module):
 
     def forward(self, output, target, mask):
 
-        mask = mask.type(torch.long)
+        mask = mask.type(torch.bool)
 
-        output = output * mask
-        target = target * mask
+        # output = output * mask
+        # target = target * mask
+        output = torch.masked_select(output, mask)
+        target = torch.masked_select(target, mask)
 
-        criterion = nn.MSELoss()
+        criterion = nn.MSELoss(reduction='mean')
         loss = criterion(output, target)
         return loss

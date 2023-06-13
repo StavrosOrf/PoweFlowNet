@@ -28,11 +28,22 @@ def main():
     SAVE_LOG_PATH = os.path.join(LOG_DIR, 'save_logs.json')
     SAVE_MODEL_PATH = os.path.join(SAVE_DIR, 'model_'+run_id+'.pt')
 
+    # Training parameters
+    data_dir = args.data_dir
     num_epochs = args.num_epochs
     loss_fn = Masked_L2_loss()
     lr = args.lr
     batch_size = args.batch_size
     grid_case = args.case
+    
+    # Network parameters
+    nfeature_dim = args.nfeature_dim
+    efeature_dim = args.efeature_dim
+    hidden_dim = args.hidden_dim
+    output_dim = args.output_dim
+    n_gnn_layers = args.n_gnn_layers
+    conv_K = args.K
+    dropout_rate = args.dropout_rate
 
     log_to_wandb = args.wandb
     if log_to_wandb:
@@ -48,23 +59,26 @@ def main():
     # torch.backends.cudnn.benchmark = False
 
     # Step 1: Load data
-    trainset = PowerFlowData(root='~/data/volume_2/power_flow_dataset', case='14', split=[.5, .2, .3], task='train')
-    valset = PowerFlowData(root='~/data/volume_2/power_flow_dataset', case='14', split=[.5, .2, .3], task='val')
-    testset = PowerFlowData(root='~/data/volume_2/power_flow_dataset', case='14', split=[.5, .2, .3], task='test')
+    trainset = PowerFlowData(root=data_dir, case=grid_case, split=[.5, .2, .3], task='train')
+    valset = PowerFlowData(root=data_dir, case=grid_case, split=[.5, .2, .3], task='val')
+    testset = PowerFlowData(root=data_dir, case=grid_case, split=[.5, .2, .3], task='test')
     train_loader = DataLoader(trainset, batch_size=batch_size, shuffle=True)
     val_loader = DataLoader(valset, batch_size=batch_size, shuffle=False)
     test_loader = DataLoader(testset, batch_size=batch_size, shuffle=False)
     
     # Step 2: Create model and optimizer (and scheduler)
     node_in_dim, node_out_dim, edge_dim = trainset.get_data_dimensions()
+    assert node_in_dim == 16
+    # NOTE nfeature_dim != node_in_dim
+    # NOTE input full data.x to model, but model doesn't use all of it
     model = MPN(
-        nfeature_dim=node_in_dim,
-        efeature_dim=edge_dim,
-        output_dim=node_out_dim,
-        hidden_dim=128,
-        n_gnn_layers=4,
-        K=3,
-        dropout_rate=0.2
+        nfeature_dim=nfeature_dim,
+        efeature_dim=efeature_dim,
+        output_dim=output_dim,
+        hidden_dim=hidden_dim,
+        n_gnn_layers=n_gnn_layers,
+        K=conv_K,
+        dropout_rate=dropout_rate
     ).to(device) 
 
     #calculate model size
