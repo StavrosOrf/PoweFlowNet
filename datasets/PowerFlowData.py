@@ -38,9 +38,24 @@ feature_names_y = [
 ]
 
 
-def select_features(data: Data) -> Data:
-    "select only the features we care about"
+def select_features(dims_x: Tuple, dims_y: Tuple):
+    def select_features_given_dims(data: Data) -> Data:
+        "select only the features we care about"
+        data.x = data.x[:, dims_x]
+        data.y = data.y[:, dims_y]
+        
+        return data
+    return select_features_given_dims
 
+def fuse_pd_pg(pd_dim: int, pg_dim: int) -> Callable:
+    def fuse_pd_pg_with_dims(data: Data) -> Data:
+        data.x[:, pd_dim] = data.x[:, pd_dim] - data.x[:, pg_dim]
+        data.x = data.x[:, :-1]
+        return data
+    
+    return fuse_pd_pg_with_dims
+    
+    
 
 class PowerFlowData(InMemoryDataset):
     """PowerFlowData(InMemoryDataset)
@@ -67,15 +82,16 @@ class PowerFlowData(InMemoryDataset):
         "test": 2
     }
 
-    def __init__(self,
-                 root: str,
-                 case: str = '14',
-                 split: Optional[List[float]] = None,
-                 task: str = "train",
-                 transform: Optional[Callable] = None,
-                 pre_transform: Optional[Callable] = None,
-                 pre_filter: Optional[Callable] = None,
-                 normalize=True):
+    def __init__(self, 
+                root: str, 
+                case: str = '14', 
+                split: Optional[List[float]] = None, 
+                task: str = "train", 
+                transform: Optional[Callable] = None, 
+                pre_transform: Optional[Callable] = fuse_pd_pg(4, 8), 
+                pre_filter: Optional[Callable] = None,
+                normalize=True):
+
         assert len(split) == 3
         assert task in ["train", "val", "test"]
         self.normalize = normalize
