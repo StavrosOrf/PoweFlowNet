@@ -22,17 +22,17 @@ def argument_parser():
     parser.add_argument('--efeature_dim', type=int, default=2, help='Number of edge features')
     parser.add_argument('--hidden_dim', type=int, default=128, help='Number of hidden features')
     parser.add_argument('--output_dim', type=int, default=6, help='Number of output features')
-    parser.add_argument('--n_gnn_layers', type=int, default=4, help='Number of GNN layers')
+    parser.add_argument('--n_gnn_layers', type=int, default=3, help='Number of GNN layers')
     parser.add_argument('--K', type=int, default=3, help='Number of conv filter taps')
     parser.add_argument('--dropout_rate', type=float, default=0.2, help='Dropout rate')
     
     # Training parameters
-    parser.add_argument('--data-dir', type=str, default='~/data/volume_2/power_flow_dataset', help='Path to data directory')
+    parser.add_argument('--data-dir', type=str, default='data', help='Path to data directory')
     parser.add_argument('--num-epochs', type=int, default=100, help='Number of epochs to train for')
-    parser.add_argument('--batch-size', type=int, default=128, help='Batch size')
+    parser.add_argument('--batch-size', type=int, default=16, help='Batch size')
     parser.add_argument('--lr', type=float, default=1e-3, help='Learning rate')
     parser.add_argument('--case', type=str, default='14', help='Grid case')
-    parser.add_argument('--wandb', default=False, help='Enable wandb logging',action=argparse.BooleanOptionalAction)
+    parser.add_argument('--wandb', default=True, help='Enable wandb logging',action=argparse.BooleanOptionalAction)
     parser.add_argument('--save', default=True, action=argparse.BooleanOptionalAction)
     
     # Step 0: Parse arguments in .json if specified 

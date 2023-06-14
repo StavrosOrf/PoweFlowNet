@@ -9,7 +9,7 @@ from torch_geometric.loader import DataLoader
 from tqdm import tqdm
 
 from datasets.PowerFlowData import PowerFlowData
-from networks.MPN import MPN
+from networks.MPN import MPN, SimpleNetwork, SimpleNetwork2
 from utils.argument_parser import argument_parser
 from utils.training import train_epoch, append_to_json
 from utils.evaluation import evaluate_epoch
@@ -48,11 +48,11 @@ def main():
     log_to_wandb = args.wandb
     if log_to_wandb:
         wandb.init(project="PowerFlowNet",
-                   entity="PowerFlowNet",
                    name=run_id,
                    config=args)
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    # device = 'mps'
     torch.manual_seed(1234)
     np.random.seed(1234)
     # torch.backends.cudnn.deterministic = True
@@ -71,8 +71,26 @@ def main():
     assert node_in_dim == 16
     # NOTE nfeature_dim != node_in_dim
     # NOTE input full data.x to model, but model doesn't use all of it
-    model = MPN(
-        nfeature_dim=nfeature_dim,
+    # model = MPN(
+    #     nfeature_dim=nfeature_dim,
+    #     efeature_dim=efeature_dim,
+    #     output_dim=output_dim,
+    #     hidden_dim=hidden_dim,
+    #     n_gnn_layers=n_gnn_layers,
+    #     K=conv_K,
+    #     dropout_rate=dropout_rate
+    # ).to(device)
+    # model = SimpleNetwork(
+    #     nfeature_dim=16,
+    #     efeature_dim=efeature_dim,
+    #     output_dim=output_dim,
+    #     hidden_dim=hidden_dim,
+    #     n_gnn_layers=n_gnn_layers,
+    #     K=conv_K,
+    #     dropout_rate=dropout_rate
+    # ).to(device)
+    model = SimpleNetwork2(
+        nfeature_dim=16,
         efeature_dim=efeature_dim,
         output_dim=output_dim,
         hidden_dim=hidden_dim,
@@ -110,7 +128,8 @@ def main():
         train_loss = train_epoch(
             model, train_loader, loss_fn, optimizer, device)
         val_loss = evaluate_epoch(model, val_loader, loss_fn, device)
-        test_loss = evaluate_epoch(model, test_loader, loss_fn, device)
+        # test_loss = evaluate_epoch(model, test_loader, loss_fn, device)
+        test_loss = val_loss
         scheduler.step()
         train_log['train']['loss'].append(train_loss)
         train_log['val']['loss'].append(val_loss)
