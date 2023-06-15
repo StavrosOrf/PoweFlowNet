@@ -9,7 +9,7 @@ from torch_geometric.loader import DataLoader
 from tqdm import tqdm
 
 from datasets.PowerFlowData import PowerFlowData
-from networks.MPN import MPN
+from networks.MPN import MPN, MPN_simplenet
 from utils.argument_parser import argument_parser
 from utils.training import train_epoch, append_to_json
 from utils.evaluation import evaluate_epoch
@@ -27,6 +27,10 @@ def main():
     TRAIN_LOG_PATH = os.path.join(LOG_DIR, 'train_log/train_log_'+run_id+'.pt')
     SAVE_LOG_PATH = os.path.join(LOG_DIR, 'save_logs.json')
     SAVE_MODEL_PATH = os.path.join(SAVE_DIR, 'model_'+run_id+'.pt')
+    models = {
+        'MPN': MPN,
+        'MPN_simplenet': MPN_simplenet,
+    }
 
     # Training parameters
     data_dir = args.data_dir
@@ -44,6 +48,7 @@ def main():
     n_gnn_layers = args.n_gnn_layers
     conv_K = args.K
     dropout_rate = args.dropout_rate
+    model = models[args.model]
 
     log_to_wandb = args.wandb
     if log_to_wandb:
@@ -69,9 +74,7 @@ def main():
     # Step 2: Create model and optimizer (and scheduler)
     node_in_dim, node_out_dim, edge_dim = trainset.get_data_dimensions()
     assert node_in_dim == 16
-    # NOTE nfeature_dim != node_in_dim
-    # NOTE input full data.x to model, but model doesn't use all of it
-    model = MPN(
+    model = model(
         nfeature_dim=nfeature_dim,
         efeature_dim=efeature_dim,
         output_dim=output_dim,

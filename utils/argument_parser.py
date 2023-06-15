@@ -25,6 +25,7 @@ def argument_parser():
     parser.add_argument('--n_gnn_layers', type=int, default=4, help='Number of GNN layers')
     parser.add_argument('--K', type=int, default=3, help='Number of conv filter taps')
     parser.add_argument('--dropout_rate', type=float, default=0.2, help='Dropout rate')
+    parser.add_argument('--model', type=str, default='MPN', help='Dropout rate')
     
     # Training parameters
     parser.add_argument('--data-dir', type=str, default='~/data/volume_2/power_flow_dataset', help='Path to data directory')
