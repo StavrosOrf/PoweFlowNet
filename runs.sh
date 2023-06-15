@@ -1,7 +1,7 @@
 # for reference, this is one datapoint:
 # Data(x=[14, 16], edge_index=[2, 20], edge_attr=[20, 5], y=[14, 6])
 
-# this one gets 0.09 accuracy after 100 epochs
+# this one gets 0.2595 accuracy after 20 epochs
 # WITH THIS ONE USE MODEL MPN_simplenet
 python train.py --num-epochs 20\
                 --batch-size 128\
