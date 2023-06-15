@@ -86,10 +86,12 @@ class PowerImbalance(MessagePassing):
         za_ij = torch.acos(edge_attr[:, 0:1] / zm_ij) # (num_edges, 1)
         ym_ij = 1/(zm_ij + 1e-6)        # (num_edges, 1)
         ya_ij = -za_ij      # (num_edges, 1)    
+        g_ij = ym_ij * torch.cos(ya_ij) # (num_edges, 1)
+        b_ij = ym_ij * torch.sin(ya_ij) # (num_edges, 1)
         vm_i = x_i[:, 0:1] # (num_edges, 1)
-        va_i = x_i[:, 1:2] # (num_edges, 1)
+        va_i = 1/180.*torch.pi*x_i[:, 1:2] # (num_edges, 1)
         vm_j = x_j[:, 0:1] # (num_edges, 1)
-        va_j = x_j[:, 1:2] # (num_edges, 1)
+        va_j = 1/180.*torch.pi*x_j[:, 1:2] # (num_edges, 1)
         
         ####### my (incomplete) method #######
         # Pji = vm_i * vm_j * ym_ij * torch.cos(va_i - va_j - ya_ij) \
@@ -99,6 +101,14 @@ class PowerImbalance(MessagePassing):
         
         ####### standard method #######
         # cannot be done since there's not complete information about whole neighborhood. 
+        
+        ####### another reference method #######
+        Pji = vm_i * vm_j * (g_ij*torch.cos(va_i-va_j)+b_ij*torch.sin(va_i-va_j))
+        Qji = vm_i * vm_j * (g_ij*torch.sin(va_i-va_j)-b_ij*torch.cos(va_i-va_j))
+        
+        # --- DEBUG ---
+        # self._dPQ = torch.cat([Pji, Qji], dim=-1) # (num_edges, 2)
+        # --- DEBUG ---
         
         return torch.cat([Pji, Qji], dim=-1) # (num_edges, 2)
     
@@ -117,8 +127,13 @@ class PowerImbalance(MessagePassing):
             \Delta P_i = \sum_{j\in N_i} P_{ji} - P_{ij}
         $$
         """
-        dPi = aggregated[:, 0:1] - x[:, 2:3] # (num_nodes, 1)
-        dQi = aggregated[:, 1:2] - x[:, 3:4] # (num_nodes, 1)
+        # TODO check if the aggregated result is correct
+        
+        # --- DEBUG ---
+        # self.node_dPQ = self._is_i.float() @ self._dPQ # correct, gecontroleerd.
+        # --- DEBUG ---
+        dPi = -aggregated[:, 0:1] + x[:, 2:3] # (num_nodes, 1)
+        dQi = -aggregated[:, 1:2] + x[:, 3:4] # (num_nodes, 1)
 
         return torch.cat([dPi, dQi], dim=-1) # (num_nodes, 2)
         
@@ -139,6 +154,11 @@ class PowerImbalance(MessagePassing):
         $$
         """
         x = self.de_normalize(x)    # correct, gecontroleerd. 
+        # --- DEBUG ---
+        # self._edge_index = edge_index
+        # self._is_i = torch.arange(14).view((14,1)).expand((14, 20)).long() == edge_index[0:1,:]
+        # self._is_j = torch.arange(14).view((14,1)).expand((14, 20)).long() == edge_index[1:2,:]
+        # --- DEBUG ---        
         dPQ = self.propagate(edge_index, x=x, edge_attr=edge_attr) # (num_nodes, 2)
         dPQ = dPQ.sum(dim=-1) # (num_nodes, 1)
         mean_dPQ = dPQ.mean()
