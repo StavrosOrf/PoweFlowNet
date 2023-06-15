@@ -1,6 +1,6 @@
 import torch
 import torch.nn as nn
-from torch_geometric.nn import MessagePassing, TAGConv, GCNConv, GATv2Conv
+from torch_geometric.nn import MessagePassing, TAGConv, GCNConv, GATConv
 from torch_geometric.utils import degree
 from torch_geometric.nn.pool import MemPooling
 
@@ -114,75 +114,8 @@ class MPN(nn.Module):
         x = self.convs[-1](x=x, edge_index=edge_index)
         
         return x
-    
-# class HierarchicalClusterGCN(nn.Module):
-#     """Wrapped Message Passing Network
-#         - One-time Message Passing to aggregate edge features into node features
-#         - Multiple Conv layers
-#     """
-#     def __init__(self, nfeature_dim, efeature_dim, output_dim, hidden_dim, n_gnn_layers, K, dropout_rate):
-#         super().__init__()
-#         self.nfeature_dim = nfeature_dim
-#         self.efeature_dim = efeature_dim
-#         self.output_dim = output_dim
-#         self.hidden_dim = hidden_dim
-#         self.n_gnn_layers = n_gnn_layers
-#         self.K = K
-#         self.dropout_rate = dropout_rate
 
-#         self.grounds_convs = nn.ModuleList()
-#         self.edge_aggr_grounds = EdgeAggregation(nfeature_dim, efeature_dim, hidden_dim, hidden_dim)
-#         self.grounds_convs.append(TAGConv(hidden_dim, hidden_dim, K=K))
-#         for l in range(n_gnn_layers-2):
-#             self.grounds_convs.append(TAGConv(hidden_dim, hidden_dim, K=K))
-
-#         self.cluster1 = MemPooling()
-#         self.cluster1_convs = nn.ModuleList()
-#         self.edge_aggr_cluster1 = EdgeAggregation(nfeature_dim, efeature_dim, hidden_dim, hidden_dim)
-#         self.cluster1_convs.append(TAGConv(hidden_dim, hidden_dim, K=K))
-#         for l in range(n_gnn_layers-2):
-#             self.convs.append(TAGConv(hidden_dim, hidden_dim, K=K))
-
-#         self.cluster2 = MemPooling()
-#         self.cluster2_convs = nn.ModuleList()
-#         self.edge_aggr_cluster2 = EdgeAggregation(nfeature_dim, efeature_dim, hidden_dim, hidden_dim)
-#         self.cluster2_convs.append(TAGConv(hidden_dim, hidden_dim, K=K))
-#         for l in range(n_gnn_layers-2):
-#             self.convs.append(TAGConv(hidden_dim, hidden_dim, K=K))
-
-#     def forward(self, data):
-#         x = data.x
-#         edge_index = data.edge_index
-#         edge_features = data.edge_attr
-        
-#         xg = self.edge_aggr(x, edge_index, edge_features)
-#         for i in range(len(self.convs)-1):
-#             xg = self.convs[i](x=x, edge_index=edge_index)
-#             xg = nn.Dropout(self.dropout_rate, inplace=False)(x)
-#             xg = nn.ReLU()(x)
-#         xg = self.convs[-1](x=x, edge_index=edge_index)
-
-#         x1 = self.cluster1()
-#         x1 = self.edge_aggr(x, edge_index, edge_features)
-#         for i in range(len(self.convs)-1):
-#             x1 = self.convs[i](x=x, edge_index=edge_index)
-#             x1 = nn.Dropout(self.dropout_rate, inplace=False)(x)
-#             x1 = nn.ReLU()(x)
-#         x1 = self.convs[-1](x=x, edge_index=edge_index)
-
-
-#         x2 = self.edge_aggr(x, edge_index, edge_features)
-#         for i in range(len(self.convs)-1):
-#             x2 = self.convs[i](x=x, edge_index=edge_index)
-#             x2 = nn.Dropout(self.dropout_rate, inplace=False)(x)
-#             x2 = nn.ReLU()(x)
-#         x2 = self.convs[-1](x=x, edge_index=edge_index)
-
-        
-#         return x
-
-
-class SimpleNetwork(nn.Module):
+class GATBaseline(nn.Module):
     """Wrapped Message Passing Network
         - One-time Message Passing to aggregate edge features into node features
         - Multiple Conv layers
@@ -196,75 +129,29 @@ class SimpleNetwork(nn.Module):
         self.n_gnn_layers = n_gnn_layers
         self.K = K
         self.dropout_rate = dropout_rate
+        # self.edge_aggr = EdgeAggregation(nfeature_dim, efeature_dim, hidden_dim, hidden_dim)
         self.convs = nn.ModuleList()
 
-        self.edge_aggr = nn.Sequential(
-            nn.Linear(efeature_dim, hidden_dim),
-            nn.ReLU(),
-            nn.Linear(hidden_dim, 1)
-        )
-
-        self.convs.append(GCNConv(nfeature_dim, hidden_dim, K=K))
+        self.convs.append(GATConv(nfeature_dim, hidden_dim, heads=1))
 
         for l in range(n_gnn_layers-2):
-            self.convs.append(GCNConv(hidden_dim, hidden_dim, K=K))
+            self.convs.append(GATConv(hidden_dim, hidden_dim, heads=1))
             
-        self.convs.append(GCNConv(hidden_dim, output_dim, K=K))
+        self.convs.append(GATConv(hidden_dim, output_dim, heads=1))
 
     def forward(self, data):
-        # assert data.x.shape[-1] == self.nfeature_dim * 2 + 4 # features and their mask + one-hot node type embedding
-        x = data.x
-        edge_index = data.edge_index
-        edge_features = data.edge_attr
-        edge_weights = self.edge_aggr(edge_features)
-        
-        for i in range(len(self.convs)-1):
-            x = self.convs[i](x=x, edge_index=edge_index, edge_weight=edge_weights)
-            # x = nn.Dropout(self.dropout_rate, inplace=False)(x)
-            x = nn.ReLU()(x)
-        
-        x = self.convs[-1](x=x, edge_index=edge_index, edge_weight=edge_weights)
-        
-        return x
-    
-class SimpleNetwork2(nn.Module):
-    """Wrapped Message Passing Network
-        - One-time Message Passing to aggregate edge features into node features
-        - Multiple Conv layers
-    """
-    def __init__(self, nfeature_dim, efeature_dim, output_dim, hidden_dim, n_gnn_layers, K, dropout_rate):
-        super().__init__()
-        self.nfeature_dim = nfeature_dim
-        self.efeature_dim = efeature_dim
-        self.output_dim = output_dim
-        self.hidden_dim = hidden_dim
-        self.n_gnn_layers = n_gnn_layers
-        self.K = K
-        self.dropout_rate = dropout_rate
-        self.convs = nn.ModuleList()
-
-        self.edge_aggr = nn.Sequential(
-            nn.Linear(efeature_dim, hidden_dim),
-            nn.ReLU(),
-            nn.Linear(hidden_dim, 1)
-        )
-
-        self.convs.append(GATv2Conv(nfeature_dim, hidden_dim // K, heads=K, edge_dim=efeature_dim))
-
-        for l in range(n_gnn_layers-2):
-            self.convs.append(GATv2Conv(hidden_dim, hidden_dim // K, heads=K, edge_dim=efeature_dim))
-            
-        self.convs.append(GATv2Conv(hidden_dim, output_dim, heads=1, edge_dim=efeature_dim))
-
-    def forward(self, data):
-        # assert data.x.shape[-1] == self.nfeature_dim * 2 + 4 # features and their mask + one-hot node type embedding
         x = data.x
         edge_index = data.edge_index
         edge_features = data.edge_attr
         
+        xcopy = x.clone()
         for i in range(len(self.convs)-1):
             x = self.convs[i](x=x, edge_index=edge_index, edge_attr=edge_features)
-            x = nn.ReLU()(x)
+            x = nn.Dropout(self.dropout_rate, inplace=False)(x)
+            x = torch.relu(x)
+            if i > 0:
+                x = x + xcopy
+            xcopy = x.clone()
         
         x = self.convs[-1](x=x, edge_index=edge_index, edge_attr=edge_features)
         
