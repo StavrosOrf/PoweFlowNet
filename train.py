@@ -66,8 +66,8 @@ def main():
 
     # Step 1: Load data
     trainset = PowerFlowData(root=data_dir, case=grid_case, split=[.5, .2, .3], task='train')
-    valset = PowerFlowData(root=data_dir, case='14', split=[.5, .2, .3], task='val')
-    testset = PowerFlowData(root=data_dir, case='14', split=[.5, .2, .3], task='test')
+    valset = PowerFlowData(root=data_dir, case=grid_case, split=[.5, .2, .3], task='val')
+    testset = PowerFlowData(root=data_dir, case=grid_case, split=[.5, .2, .3], task='test')
     train_loader = DataLoader(trainset, batch_size=batch_size, shuffle=True)
     val_loader = DataLoader(valset, batch_size=batch_size, shuffle=False)
     test_loader = DataLoader(testset, batch_size=batch_size, shuffle=False)

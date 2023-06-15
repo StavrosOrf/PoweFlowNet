@@ -3,7 +3,7 @@
 
 # this one gets 0.09 accuracy after 100 epochs
 # WITH THIS ONE USE MODEL MPN_simplenet
-python train.py --num-epochs 10\
+python train.py --num-epochs 20\
                 --batch-size 128\
                 --lr 0.001\
                 --case 118\
@@ -15,4 +15,4 @@ python train.py --num-epochs 10\
                 --dropout_rate 0.2\
                 --model MPN_simplenet\
                 --regularize=True\
-                --regularization_coeff=1.0\
+                --regularization_coeff=0.2

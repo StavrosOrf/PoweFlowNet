@@ -136,12 +136,10 @@ class MPN_simplenet(nn.Module):
         
         x = self.edge_aggr(x, edge_index, edge_features)
         for i in range(len(self.convs)-1):
-            # x = self.convs[i](x=x, edge_index=edge_index, edge_weight=edge_attr)
             x = self.convs[i](x=x, edge_index=edge_index)
             x = nn.Dropout(self.dropout_rate, inplace=False)(x)
             x = nn.ReLU()(x)
         
-        # x = self.convs[-1](x=x, edge_index=edge_index, edge_weight=edge_attr)
         x = self.convs[-1](x=x, edge_index=edge_index)
         
         return x
