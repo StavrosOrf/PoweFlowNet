@@ -6,7 +6,7 @@ import numpy as np
 import torch
 
 LOG_DIR = 'logs'
-
+#os.makedirs(LOG_DIR, exist_ok=True)
 def main():
     run_id = '20230606-1194'
     TRAIN_LOG_PATH = os.path.join(LOG_DIR, 'train_log/train_log_'+run_id+'.pt')
