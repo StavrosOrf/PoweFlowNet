@@ -35,7 +35,8 @@ def main():
     # Training parameters
     data_dir = args.data_dir
     num_epochs = args.num_epochs
-    loss_fn = Masked_L2_loss()
+    loss_fn = Masked_L2_loss(regularize=args.regularize, regcoeff=args.regularization_coeff)
+    eval_loss_fn = Masked_L2_loss(regularize=False)
     lr = args.lr
     batch_size = args.batch_size
     grid_case = args.case
@@ -65,8 +66,8 @@ def main():
 
     # Step 1: Load data
     trainset = PowerFlowData(root=data_dir, case=grid_case, split=[.5, .2, .3], task='train')
-    valset = PowerFlowData(root=data_dir, case=grid_case, split=[.5, .2, .3], task='val')
-    testset = PowerFlowData(root=data_dir, case=grid_case, split=[.5, .2, .3], task='test')
+    valset = PowerFlowData(root=data_dir, case='14', split=[.5, .2, .3], task='val')
+    testset = PowerFlowData(root=data_dir, case='14', split=[.5, .2, .3], task='test')
     train_loader = DataLoader(trainset, batch_size=batch_size, shuffle=True)
     val_loader = DataLoader(valset, batch_size=batch_size, shuffle=False)
     test_loader = DataLoader(testset, batch_size=batch_size, shuffle=False)
@@ -109,7 +110,7 @@ def main():
     for epoch in range(num_epochs):
         train_loss = train_epoch(
             model, train_loader, loss_fn, optimizer, device)
-        val_loss = evaluate_epoch(model, val_loader, loss_fn, device)
+        val_loss = evaluate_epoch(model, val_loader, eval_loss_fn, device)
         scheduler.step()
         train_log['train']['loss'].append(train_loss)
         train_log['val']['loss'].append(val_loss)
@@ -141,7 +142,7 @@ def main():
     if args.save:
         _to_load = torch.load(SAVE_MODEL_PATH)
         model.load_state_dict(_to_load['model_state_dict'])
-        test_loss = evaluate_epoch(model, test_loader, loss_fn, device)
+        test_loss = evaluate_epoch(model, test_loader, eval_loss_fn, device)
         print(f"Test loss: {best_val_loss:.4f}")
         if log_to_wandb:
             wandb.log({'test_loss', test_loss})

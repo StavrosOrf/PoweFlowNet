@@ -26,6 +26,9 @@ def argument_parser():
     parser.add_argument('--K', type=int, default=3, help='Number of conv filter taps')
     parser.add_argument('--dropout_rate', type=float, default=0.2, help='Dropout rate')
     parser.add_argument('--model', type=str, default='MPN', help='Dropout rate')
+    parser.add_argument('--regularize', type=bool, default=True, help='whether the loss function,\
+                        during training, will make the masked parts of the output part of the loss function')
+    parser.add_argument('--regularization_coeff', type=float, default=1.0, help='Dropout rate')
     
     # Training parameters
     parser.add_argument('--data-dir', type=str, default='data', help='Path to data directory')

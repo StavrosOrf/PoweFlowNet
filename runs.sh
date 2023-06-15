@@ -13,4 +13,6 @@ python train.py --num-epochs 10\
                 --n_gnn_layers 2\
                 --K 3\
                 --dropout_rate 0.2\
-                --model MPN_simplenet
+                --model MPN_simplenet\
+                --regularize=True\
+                --regularization_coeff=1.0\
