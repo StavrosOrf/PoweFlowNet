@@ -28,7 +28,7 @@ def argument_parser():
     parser.add_argument('--model', type=str, default='MPN', help='Dropout rate')
     
     # Training parameters
-    parser.add_argument('--data-dir', type=str, default='~/data/volume_2/power_flow_dataset', help='Path to data directory')
+    parser.add_argument('--data-dir', type=str, default='data', help='Path to data directory')
     parser.add_argument('--num-epochs', type=int, default=100, help='Number of epochs to train for')
     parser.add_argument('--batch-size', type=int, default=128, help='Batch size')
     parser.add_argument('--lr', type=float, default=1e-3, help='Learning rate')
