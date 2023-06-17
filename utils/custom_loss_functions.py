@@ -22,11 +22,13 @@ class Masked_L2_loss(nn.Module):
         super(Masked_L2_loss, self).__init__()
 
     def forward(self, output, target, mask):
-
         mask = mask.type(torch.bool)
 
         # output = output * mask
         # target = target * mask
+        #print("Output shape: ", output.shape)
+        #print("Target shape: ", target.shape)
+        #print("Mask shape: ", mask.shape) 
         output = torch.masked_select(output, mask)
         target = torch.masked_select(target, mask)
 
