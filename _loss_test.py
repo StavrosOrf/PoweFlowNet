@@ -9,7 +9,7 @@ from utils.custom_loss_functions import PowerImbalance
 
 def main():
     # TODO import trainset, select an data.y, calculate the imbalance
-    trainset = PowerFlowData(root='data', case='14', split=[.5, .3, .2], task='train',
+    trainset = PowerFlowData(root='data', case='9', split=[.5, .3, .2], task='train',
                              normalize=True)
     sample = trainset[2]
     loss_fn = PowerImbalance(trainset.xymean, trainset.xystd)
