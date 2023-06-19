@@ -31,11 +31,11 @@ import numpy as np
 # print(net)
 # print(net.keys())
 
-number_of_samples = 1000
+number_of_samples = 10
 
-test_case = 'case6470rte'
-base_net = pp.networks.case6470rte()
-# base_net = pp.networks.case5()
+test_case = 'case5'
+# base_net = pp.networks.case6470rte()
+base_net = pp.networks.case5()
 base_net.bus['name'] = base_net.bus.index
 print(base_net.bus)
 print(base_net.line)
@@ -62,8 +62,8 @@ ref_bus = base_net.ext_grid['bus'].values[0]
 print(f'ref_bus: {ref_bus}')
 
 while True:
-    # net = base_net
-    net = pp.networks.case6470rte()
+    net = base_net
+    # net = pp.networks.case6470rte()
     # net = pp.networks.case5()
     net.bus['name'] = base_net.bus.index
 
@@ -106,8 +106,7 @@ while True:
     try:    
         pp.runpp(net, algorithm='nr', init="results", numba=False)
     except:
-        print(f'Failed to converge, current sample number: {len(edge_features_list)}')
-        import pandapower as pp
+        print(f'Failed to converge, current sample number: {len(edge_features_list)}')        
         continue        
 
     # Graph feature
@@ -175,10 +174,10 @@ while True:
 
     if len(edge_features_list) == number_of_samples:
         break
-    elif len(edge_features_list) % 10 == 0:
+    elif len(edge_features_list) % 100 == 0:
         print(f'Current sample number: {len(edge_features_list)}')
 
-    if len(edge_features_list) % 100 == 0:
+    if len(edge_features_list) % 1000 == 0:
         # Turn the lists into numpy arrays
         edge_features = np.array(edge_features_list)
         node_features_x = np.array(node_features_x_list)
@@ -199,6 +198,11 @@ while True:
 
     with open("./data/raw/"+test_case+"_adjacency_matrix.npy", 'wb') as f:
         np.save(f, A)
+
+edge_features = np.array(edge_features_list)
+node_features_x = np.array(node_features_x_list)
+node_features_y = np.array(node_features_y_list)
+# graph_features = np.array(graph_feature_list)
 
 # Print the shapes
 print(f'Adjacency matrix shape: {A.shape}')
