@@ -19,21 +19,32 @@ class Masked_L2_loss(nn.Module):
         torch.Tensor: The masked L2 loss.
     """
 
-    def __init__(self):
+    def __init__(self, regularize=True, regcoeff=1):
         super(Masked_L2_loss, self).__init__()
+        self.criterion = nn.MSELoss(reduction='mean')
+        self.regularize = regularize
+        self.regcoeff = regcoeff
 
     def forward(self, output, target, mask):
 
-        mask = mask.type(torch.bool)
+        masked = mask.type(torch.bool)
 
         # output = output * mask
         # target = target * mask
-        output = torch.masked_select(output, mask)
-        target = torch.masked_select(target, mask)
+        outputl = torch.masked_select(output, masked)
+        targetl = torch.masked_select(target, masked)
 
-        criterion = nn.MSELoss(reduction='mean')
-        loss = criterion(output, target)
+        loss = self.criterion(outputl, targetl)
+
+        if self.regularize:
+            masked = (1 - mask).type(torch.bool)
+            output_reg = torch.masked_select(output, masked)
+            target_reg = torch.masked_select(target, masked)
+            loss = loss + self.regcoeff * self.criterion(output_reg, target_reg)
+
         return loss
+    
+    
 
 class PowerImbalance(MessagePassing):
     """Power Imbalance Loss Class

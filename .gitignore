@@ -171,3 +171,5 @@ logs/
 models/
 results/
 wandb/
+outtest.txt
+runs.bat
