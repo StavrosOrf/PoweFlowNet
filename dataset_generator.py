@@ -1,5 +1,4 @@
 # write an example code for a power flow using pypower
-import random
 
 from pygsp import graphs, plotting
 import pypower.api as pp
@@ -108,22 +107,7 @@ graph_feature_list = []
 while True:
     case = base_case
 
-    # Step 1: Randomized generator node
-    ori_num_gen = case['gen'].shape[0]
-    delta_num_gen = np.random.randint(-ori_num_gen // 7, ori_num_gen // 7) # ~14%
-    delta_num_gen = 2
-    if delta_num_gen < 0:
-        case['gen'] = case['gen'][:delta_num_gen,:]
-    if delta_num_gen > 0:
-        case['gen'] = np.concatenate([case['gen'], case['gen'][:delta_num_gen,:]], axis=0) # rule: copy the first few
-        all_nodes = list(range(1, case['bus'].shape[0]+1)) # starting from 1
-        gen_nodes = list(case['gen'][:,0].astype(int))
-        load_nodes = [node_idx for node_idx in all_nodes if node_idx not in gen_nodes]
-        new_gen_nodes = random.sample(load_nodes, 2)
-        case['gen'][-delta_num_gen:,0] = new_gen_nodes
-        # TODO rule out reference bus!!!
-
-    # Step 2: Get random values for the parameters
+    # Get random values for the parameters
     r = case['branch'][:, 2]
     x = case['branch'][:, 3]
     b = case['branch'][:, 4]
@@ -132,46 +116,36 @@ while True:
     Pmax = case['gen'][:, 8]
     Pmin = case['gen'][:, 9]
     Pd = case['bus'][:, 2]
-    
-    # Step 3: Randomize input data
-    # -- Step 3.1: branch data
+
     r = np.random.uniform(0.8*r, 1.2*r, case['branch'].shape[0])
     x = np.random.uniform(0.8*x, 1.2*x, case['branch'].shape[0])
-    b = np.zeros(case['branch'].shape[0])
-    tau = np.zeros(case['branch'].shape[0])
-    angle = np.zeros(case['branch'].shape[0])
-    
-    case['branch'][:, 2] = r    
-    case['branch'][:, 3] = x
-    case['branch'][:, 4] = b
-    case['branch'][:, 8] = tau
-    case['branch'][:, 9] = angle
-    
-    # -- Step 3.2: bus data
-    Vg = np.random.uniform(0.95, 1.05, case['gen'].shape[0])
-    Pg = np.random.uniform(0.25*Pmax, 1.25*Pmax, case['gen'].shape[0])
+    b = np.random.uniform(0.1*b, 2.0*b, case['branch'].shape[0])
+    # tau = np.random.uniform(0.8*tau, 1.2*tau, case['branch'].shape[0]) # NOTE shouldn't change this. but does it make a difference?
+    # angle = np.random.uniform(-0.2, 0.2, case['branch'].shape[0])     # NOTE should theoretically not matter
+
+    vg = np.random.uniform(0.95, 1.05, case['gen'].shape[0])
+    Pg = np.random.uniform(0.25*Pmax, 0.75*Pmax, case['gen'].shape[0])
 
     Pd = np.random.uniform(0.5*Pd, 1.5*Pd, case['bus'].shape[0])
     Qd = np.random.uniform(0.5*Pd, 1.5*Pd, case['bus'].shape[0])
-    Gs = np.zeros(case['bus'].shape[0])
-    Bs = np.zeros(case['bus'].shape[0])
     
-    # power balance adjust
-    #   only active, reactive Qg is unknown
-    sum_Pg = np.sum(Pg)
-    sum_Pd = np.sum(Pd)
-    Pd = Pd/sum_Pd * sum_Pg * np.random.uniform(0.87, 0.93) # total Pd = total Pg - transmission loss
-    
-    # generator bus
-    case['gen'][:, 5] = Vg
-    case['gen'][:, 1] = Pg
-    # all bus
-    for gen_node in case['gen'][:, 0]:
-        case['bus'][gen_node, 0] = 2
-    case['bus'][:, 2] = Pd * PD_factor
-    case['bus'][:, 3] = Qd
-    case['bus'][:, 4] = Gs
-    case['bus'][:, 5] = Bs
+    # case['branch'][:, 2] = r    
+    # case['branch'][:, 3] = x
+    case['branch'][:, 4] = b
+    # case['branch'][:, 8] = tau
+    # case['branch'][:, 9] = angle
+    case['branch'][:, 8] = 0.
+    case['branch'][:, 9] = 0.
+
+    # # print(vg)
+    # case['gen'][:, 5] = vg
+    # # print(case['gen'][:, 5])
+    # # print(Pg)
+    # case['gen'][:, 1] = Pg
+    # # print(case['gen'][:, 1])
+
+    # case['bus'][:, 2] = Pd * PD_factor
+    # case['bus'][:, 3] = Qd
 
     # print_Bus_data(base_case, case)
     # print_Gen_data(base_case, case)
@@ -179,7 +153,7 @@ while True:
 
     ppopt = pp.ppoption()
     ppopt["PF_MAX_IT"] = 10
-    ppopt['VERBOSE'] = False
+    ppopt['VERBOSE'] = True
     x = pp.runpf(case,ppopt=ppopt)
 
     if x[1] == 0:
