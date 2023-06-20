@@ -31,7 +31,7 @@ import numpy as np
 # print(net)
 # print(net.keys())
 
-number_of_samples = 1000
+number_of_samples = 10000
 
 test_case = 'case6470rte'
 base_net = pp.networks.case6470rte()
@@ -62,7 +62,7 @@ ref_bus = base_net.ext_grid['bus'].values[0]
 print(f'ref_bus: {ref_bus}')
 
 while True:
-    # net = base_net
+    net = base_net
     net = pp.networks.case6470rte()
     # net = pp.networks.case5()
     net.bus['name'] = base_net.bus.index
@@ -197,8 +197,12 @@ while True:
         # with open("./data/"+test_case+"_graph_features.npy", 'wb') as f:
         #     np.save(f, graph_features)
 
-    with open("./data/raw/"+test_case+"_adjacency_matrix.npy", 'wb') as f:
-        np.save(f, A)
+        with open("./data/raw/"+test_case+"_adjacency_matrix.npy", 'wb') as f:
+            np.save(f, A)
+
+edge_features = np.array(edge_features_list)
+node_features_x = np.array(node_features_x_list)
+node_features_y = np.array(node_features_y_list)
 
 # Print the shapes
 print(f'Adjacency matrix shape: {A.shape}')
