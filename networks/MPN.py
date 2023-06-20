@@ -1,6 +1,6 @@
 import torch
 import torch.nn as nn
-from torch_geometric.nn import MessagePassing, TAGConv
+from torch_geometric.nn import MessagePassing, TAGConv, ChebConv
 from torch_geometric.utils import degree
 
 class EdgeAggregation(MessagePassing):
@@ -138,6 +138,57 @@ class MPN_simplenet(nn.Module):
         for i in range(len(self.convs)-1):
             x = self.convs[i](x=x, edge_index=edge_index)
             x = nn.Dropout(self.dropout_rate, inplace=False)(x)
+            x = nn.ReLU()(x)
+        
+        x = self.convs[-1](x=x, edge_index=edge_index)
+        
+        return x
+
+class HigherOrderNN(nn.Module):
+    """Wrapped Message Passing Network
+        - One-time Message Passing to aggregate edge features into node features
+        - Multiple Conv layers
+    """
+    def __init__(self, nfeature_dim, efeature_dim, output_dim, hidden_dim, n_gnn_layers, K, dropout_rate):
+        super().__init__()
+        self.nfeature_dim = nfeature_dim
+        self.efeature_dim = efeature_dim
+        self.output_dim = output_dim
+        self.hidden_dim = hidden_dim
+        self.n_gnn_layers = n_gnn_layers
+        self.K = K
+        # self.dropout_rate = dropout_rate
+        self.convs = nn.ModuleList()
+
+        self.convs.append(ChebConv(nfeature_dim, hidden_dim, K=K))
+
+        for l in range(n_gnn_layers-2):
+            self.convs.append(ChebConv(hidden_dim, hidden_dim, K=K))
+            
+        self.convs.append(ChebConv(hidden_dim, output_dim, K=K))
+
+
+        self.edge_aggr = nn.Sequential(
+            nn.Linear(efeature_dim + nfeature_dim + 1, hidden_dim),
+            nn.ReLU(),
+            nn.Linear(hidden_dim, 1),
+            nn.ReLU(),
+        )
+
+    def forward(self, data):
+        x = data.x
+        edge_index = data.edge_index
+        edge_features = data.edge_attr
+
+        
+        for i in range(len(self.convs)-1):
+            xdiff = torch.abs(torch.gather(x, 0, edge_index[0].unsqueeze(-1).expand(-1, 16)) - \
+                torch.gather(x, 0, edge_index[1].unsqueeze(-1).expand(-1, 16)))
+            edge_weights = self.edge_aggr(torch.concat((xdiff, edge_features,\
+                            torch.tensor([i]).unsqueeze(-1).expand(xdiff.shape[0], 1)), dim=1))
+
+            x = self.convs[i](x=x, edge_index=edge_index, edge_weight=edge_weights)
+            # x = nn.Dropout(self.dropout_rate, inplace=False)(x)
             x = nn.ReLU()(x)
         
         x = self.convs[-1](x=x, edge_index=edge_index)
