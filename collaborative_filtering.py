@@ -11,7 +11,7 @@ import torch
 
 data_dir = "./data/"
 grid_case = "5"
-# grid_case = "14"
+grid_case = "14"
 # grid_case = "9"
 # grid_case = "6470rte"
 # grid_case = "118"
@@ -42,11 +42,9 @@ G = graphs.Graph(adjacency_matrix)
 G.compute_differential_operator()
 B = G.D.toarray()
 print(f'B: {B.shape}')
-#get laplacian matrix
+# get laplacian matrix
 L = G.L.toarray()
 print(f'Laplacian: {L.shape}')
-
-eval_loss_fn = Masked_L2_loss(regularize=False)
 
 # Get the data
 
@@ -58,7 +56,7 @@ print("x_gt: ", x_gt.shape, x_gt[0, :])
 y = trainset.x[:num_of_nodes, 4:8]
 print("y: ", y.shape, y[0, :])
 
-#mask of values to be predicted
+# mask of values to be predicted
 mask = trainset.x[:num_of_nodes, 10:14]
 
 # find values x from ys
@@ -70,51 +68,79 @@ print("problem is constructed...")
 f = x_gt.shape[1]
 print("f: ", f)
 
-# decision variables
-z_hat = cp.Variable((x_gt.shape[0], x_gt.shape[1]))
 
-# x_hat = cp.Variable((x_gt.shape[0],x_gt.shape[1]))
-error = cp.square(cp.pnorm(cp.multiply(y,mask)-cp.multiply(z_hat,mask), f))
-regularizer = cp.norm(z_hat, 1)
+def collaborative_filtering_testing(y, mask, B, x_gt, eval_loss_fn=Masked_L2_loss(regularize=False)):
 
-# lambda_z = 0.0001
-# prob = cp.Problem(cp.Minimize(1/2 * error + lambda_z*cp.norm(z_hat,1)))
+    # decision variables
+    z_hat = cp.Variable((x_gt.shape[0], x_gt.shape[1]))
 
-losses = []
-rnmse_list = []
-#for alpha in set  [0,10]  with 0,01 step
-alphas = np.arange(0, 5, 0.5)
-aplhas = []
-alphas = [0.1,1,10]
-for alpha in alphas:
+    distance = 1/2 * \
+        cp.square(cp.pnorm(cp.multiply(y, mask)-cp.multiply(z_hat, mask), f))
+    normalizer = cp.square(cp.pnorm(z_hat, f))
+    # trace = cp.trace(cp.matmul(cp.multiply(z_hat,mask).T, cp.matmul(L, cp.multiply(z_hat,mask))))
+    # trace = cp.trace(cp.matmul(z_hat.T, cp.matmul(L,z_hat)))
+    trace = cp.norm(B@z_hat, 2)
+    # lambda_z = 0.0001
+    # prob = cp.Problem(cp.Minimize(1/2 * error + lambda_z*cp.norm(z_hat,1)))
 
-    prob = cp.Problem(cp.Minimize(error + alpha*cp.sum_squares(B@(cp.multiply(z_hat,mask)))))
+    losses = []
+    rnmse_list = []
+    # for alpha in set  [0,10]  with 0,01 step
+    alphas = np.arange(0, 5, 0.5)
+    aplhas = []
+    alphas = [0.1, 0.5, 1, 10]
+    lambda_L_list = np.arange(0, 10, 0.5)
+    lambda_z_list = np.arange(0, 10, 0.5)
 
-    print("problem is solved...")
-    prob.solve()
-    print("status:", prob.status)
-    rnmse = np.sqrt(np.square(z_hat.value-x_gt).mean())/y.std()
-    rnmse_list.append(rnmse)
-    print(f"The rNMSE is: {np.round(rnmse,4)}")
+    results = np.zeros((len(lambda_L_list), len(lambda_z_list)))
 
-    # print("z_hat: ", z_hat.value*mask.numpy())
-    # print("x_gt: ", x_gt*mask.numpy())
+    for i, lambda_L in enumerate(lambda_L_list):
+        for j, lambda_z in enumerate(lambda_z_list):
+            prob = cp.Problem(cp.Minimize(
+                distance + lambda_z*normalizer + lambda_L*trace))
 
-    # print("mask: ", mask)
+            print("problem is solved...")
+            prob.solve()
+            print("status:", prob.status)
+            rnmse = np.sqrt(np.square(z_hat.value-x_gt).mean())/y.std()
+            rnmse_list.append(rnmse)
+            print(f"The rNMSE is: {np.round(rnmse,4)}")
 
-    z_tensor = torch.tensor(z_hat.value)
-    x_gt_tensor = torch.tensor(x_gt)
+            # print("z_hat: ", z_hat.value*mask.numpy())
+            # print("x_gt: ", x_gt*mask.numpy())
 
-    loss = eval_loss_fn(z_tensor, x_gt_tensor, mask)
-    # print("loss: ", loss.item())
-    losses.append(loss.item())
+            # print("mask: ", mask)
 
-#plot losses and rmse in different subplots
-import matplotlib.pyplot as plt
-fig, axs = plt.subplots(2)
-axs[0].plot(alphas, losses)
-axs[0].set_title('Loss')
-axs[1].plot(alphas, rnmse_list)
-axs[1].set_title('rNMSE')
-plt.show()
+            z_tensor = torch.tensor(z_hat.value)
+            x_gt_tensor = torch.tensor(x_gt)
 
+            loss = eval_loss_fn(z_tensor, x_gt_tensor, mask)
+            # print("loss: ", loss.item())
+            # losses.append(loss.item())
+            results[i, j] = loss.item()
+
+    # plot a 2d heatmap of the results
+    import matplotlib.pyplot as plt
+    import seaborn as sns
+    sns.set_theme()
+
+    ax = sns.heatmap(results, annot=True, fmt=".2f", cmap="YlGnBu")
+    ax.set_xlabel("lambda_z")
+    ax.set_ylabel("lambda_L")
+
+    plt.show()
+
+
+def tikhonov_regularizer(alpha, L, y, mask):
+    # Tikhonov regularization
+    z_hat = np.matmul(np.matmul(np.linalg.inv(alpha*L + np.eye(L.shape[0])), L), y)        
+
+    return z_hat
+
+collaborative_filtering_testing(y, mask, B,x_gt)
+
+eval_loss_fn=Masked_L2_loss(regularize=False)
+result = tikhonov_regularizer(1.25, L, y, mask)
+
+loss = eval_loss_fn(torch.tensor(result), torch.tensor(x_gt), mask)
+print("loss: ", loss.item())
