@@ -1,6 +1,7 @@
 import time
 import pandapower as pp
 import numpy as np
+import pickle
 # write file documentation here
 
 
@@ -31,11 +32,11 @@ import numpy as np
 # print(net)
 # print(net.keys())
 
-number_of_samples = 10
+number_of_samples = 100000
 
-test_case = 'case5'
-# base_net = pp.networks.case6470rte()
-base_net = pp.networks.case5()
+test_case = 'case6470rte'
+base_net = pp.networks.case6470rte()
+# base_net = pp.networks.case30()
 base_net.bus['name'] = base_net.bus.index
 print(base_net.bus)
 print(base_net.line)
@@ -57,15 +58,37 @@ edge_features_list = []
 node_features_x_list = []
 node_features_y_list = []
 graph_feature_list = []
+reconstruction_case_list = []
 
 ref_bus = base_net.ext_grid['bus'].values[0]
 print(f'ref_bus: {ref_bus}')
 
+r_original = base_net.line['r_ohm_per_km'].values
+x_original = base_net.line['x_ohm_per_km'].values
+
+vm_original = base_net.gen['vm_pu'].values
+vg_original = base_net.gen['p_mw'].values
+
+pd_original = base_net.load['p_mw'].values
+qd_original = base_net.load['q_mvar'].values
+net = base_net
+
 while True:
-    net = base_net
-    # net = pp.networks.case6470rte()
-    # net = pp.networks.case5()
+    # net = base_net
+    net = pp.networks.case6470rte()
+    # net = pp.networks.case30()
     net.bus['name'] = base_net.bus.index
+
+    # net.line['r_ohm_per_km'] = r_original
+    # net.line['x_ohm_per_km'] = x_original
+
+    # net.gen['vm_pu'] = vm_original
+    # net.gen['p_mw'] = vg_original
+    
+    # net.load['p_mw'] = pd_original
+    # net.load['q_mvar'] = qd_original
+
+
 
     r = net.line['r_ohm_per_km'].values    
     x = net.line['x_ohm_per_km'].values
@@ -82,8 +105,8 @@ while True:
     Pd = net.load['p_mw'].values
     Qd = net.load['q_mvar'].values
 
-    # r = np.random.uniform(0.8*r, 1.2*r, r.shape[0])    
-    # x = np.random.uniform(0.8*x, 1.2*x, x.shape[0])
+    r = np.random.uniform(0.8*r, 1.2*r, r.shape[0])    
+    x = np.random.uniform(0.8*x, 1.2*x, x.shape[0])
     # le = np.random.uniform(0.8*le, 1.2*le, le.shape[0])
    
     vg = np.random.uniform(0.95, 1.05, net.gen['vm_pu'].shape[0])
@@ -102,6 +125,8 @@ while True:
 
     net.load['p_mw'] = Pd
     net.load['q_mvar'] = Qd
+
+    reconstruction_case_list.append((r,x,vg,Pg,Pd,Qd))
 
     try:    
         pp.runpp(net, algorithm='nr', init="results", numba=False)
@@ -183,6 +208,7 @@ while True:
         node_features_x = np.array(node_features_x_list)
         node_features_y = np.array(node_features_y_list)
         # graph_features = np.array(graph_feature_list)
+        # reconstruction_case = np.array(reconstruction_case_list)
 
         with open("./data/raw/"+test_case+"_edge_features.npy", 'wb') as f:
             np.save(f, edge_features)
@@ -193,11 +219,16 @@ while True:
         with open("./data/raw/"+test_case+"_node_features_y.npy", 'wb') as f:
             np.save(f, node_features_y)
 
+        #pickle the reconstructed cases
+        with open("./data/raw/"+test_case+"_reconstruction_case.pkl", 'wb') as f:
+            pickle.dump(reconstruction_case_list, f)
+        
+
         # with open("./data/"+test_case+"_graph_features.npy", 'wb') as f:
         #     np.save(f, graph_features)
 
         with open("./data/raw/"+test_case+"_adjacency_matrix.npy", 'wb') as f:
-            np.save(f, A)
+            np.save(f, A)        
 
 edge_features = np.array(edge_features_list)
 node_features_x = np.array(node_features_x_list)
