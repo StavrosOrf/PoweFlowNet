@@ -138,7 +138,7 @@ class PowerFlowData(InMemoryDataset):
         # + 4 for the one-hot encoding for four node types, -2 because we remove the index and Pg
         template = torch.zeros((data.x.shape[0], data.x.shape[1] + 3 - 2))
         template[:, 0:4] = torch.nn.functional.one_hot(
-            data.x[:, 1].type(torch.int64))
+            data.x[:, 1].type(torch.int64),num_classes=4)
         template[:, 4:10] = data.x[:, 2:8]
         data.x = template
         # for y

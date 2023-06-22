@@ -196,8 +196,8 @@ while True:
         # with open("./data/"+test_case+"_graph_features.npy", 'wb') as f:
         #     np.save(f, graph_features)
 
-    with open("./data/raw/"+test_case+"_adjacency_matrix.npy", 'wb') as f:
-        np.save(f, A)
+        with open("./data/raw/"+test_case+"_adjacency_matrix.npy", 'wb') as f:
+            np.save(f, A)
 
 edge_features = np.array(edge_features_list)
 node_features_x = np.array(node_features_x_list)
@@ -217,40 +217,3 @@ print(f'range of edge_features "to": {np.min(edge_features[:,:,1])} - {np.max(ed
 print(f'range of node_features_x "index": {np.min(node_features_x[:,:,0])} - {np.max(node_features_x[:,:,0])}')
 
 print(f'range of node_features_y "index": {np.min(node_features_y[:,:,0])} - {np.max(node_features_y[:,:,0])}')
-
-exit()
-#  Computation time experimental comparison beginning (will be moved to other file later on)
-
-# calculate power flow for every algorithm and calculate time
-algorithms = ["nr", "iwamoto_nr",  "gs", "fdbx", "fdxb"]
-times = []
-
-for a in algorithms:
-    t0 = time.time()
-    # pp.runpp(net, algorithm=a)
-    pp.runpp(net, algorithm=a, init="results", numba=False)
-    t1 = time.time()
-    times.append(t1 - t0)
-
-for a in algorithms:
-    print(f"{a}: {times[algorithms.index(a)]}")
-
-
-# print(net.res_bus.vm_pu)
-# print(net.res_line.loading_percent)
-
-# calculate power flow for every algorithm and calculate time 1000 times
-# algorithms = ["nr", "iwamoto_nr",  "gs", "fdbx", "fdxb"]
-algorithms = ["nr", "iwamoto_nr", "fdbx", "fdxb"]
-times = []
-
-for a in algorithms:
-    print(a)
-    t0 = time.time()
-    for i in range(1000):
-        pp.runpp(net, algorithm=a, init="auto", numba=False)
-    t1 = time.time()
-    times.append(t1 - t0)
-
-for a in algorithms:
-    print(f"{a}: {times[algorithms.index(a)]/1000}")
