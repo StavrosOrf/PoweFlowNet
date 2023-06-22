@@ -74,7 +74,7 @@ while True:
     Pd = net.load['p_mw'].values
     Qd = net.load['q_mvar'].values
 
-    r = np.random.uniform(0.8*r, 1.2*r, r.shape[0])    
+    r = np.random.uniform(0.8*r, 1.2*r, r.shape[0]) + np.random.normal(0, 0.1, r.shape[0])
     x = np.random.uniform(0.8*x, 1.2*x, x.shape[0])
     # c = np.random.uniform(0.8*c, 1.2*c, c.shape[0])
     le = np.random.uniform(0.8*le, 1.2*le, le.shape[0])
@@ -85,8 +85,10 @@ while True:
     vg = np.random.uniform(0.95, 1.05, net.gen['vm_pu'].shape[0])
     Pg = np.random.uniform(0.25*Pmax, 0.75*Pmax, net.gen['p_mw'].shape[0])
     
-    Pd = np.random.uniform(0.5*Pd, 1.5*Pd, net.load['p_mw'].shape[0])
-    Qd = np.random.uniform(0.5*Qd, 1.5*Qd, net.load['q_mvar'].shape[0])
+    # Pd = np.random.uniform(0.5*Pd, 1.5*Pd, net.load['p_mw'].shape[0])
+    Pd = np.random.normal(Pd, 0.2*Pd, net.load['p_mw'].shape[0])
+    # Qd = np.random.uniform(0.5*Qd, 1.5*Qd, net.load['q_mvar'].shape[0])
+    Qd = np.random.normal(Qd, 0.2*Qd, net.load['q_mvar'].shape[0])
     
     net.line['r_ohm_per_km'] = r
     net.line['x_ohm_per_km'] = x

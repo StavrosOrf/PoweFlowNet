@@ -31,3 +31,6 @@ Raw data format:
 | `Data.y` | (batch_size*N, Fn) |
 
 
+
+**Notes**
+Some load nodes are assigned with 0 power. Becaus they are not created through `create_load(bus, ...)`. Consider does this matter? 
