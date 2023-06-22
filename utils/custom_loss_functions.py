@@ -102,10 +102,10 @@ class PowerImbalance(MessagePassing):
         va_j = 1/180.*torch.pi*x_j[:, 1:2] # (num_edges, 1)
         
         ####### my (incomplete) method #######
-        Pji = vm_i * vm_j * ym_ij * torch.cos(va_i - va_j - ya_ij) \
-                - vm_i**2 * ym_ij * torch.cos(-ya_ij)
-        Qji = vm_i * vm_j * ym_ij * torch.sin(va_i - va_j - ya_ij) \
-                - vm_i**2 * ym_ij * torch.sin(-ya_ij)
+        # Pji = vm_i * vm_j * ym_ij * torch.cos(va_i - va_j - ya_ij) \
+        #         - vm_i**2 * ym_ij * torch.cos(-ya_ij)
+        # Qji = vm_i * vm_j * ym_ij * torch.sin(va_i - va_j - ya_ij) \
+        #         - vm_i**2 * ym_ij * torch.sin(-ya_ij)
         
         ####### standard method #######
         # cannot be done since there's not complete information about whole neighborhood. 
@@ -113,6 +113,12 @@ class PowerImbalance(MessagePassing):
         ####### another reference method #######
         # Pji = vm_i * vm_j * (g_ij*torch.cos(va_i-va_j)+b_ij*torch.sin(va_i-va_j))
         # Qji = vm_i * vm_j * (g_ij*torch.sin(va_i-va_j)-b_ij*torch.cos(va_i-va_j))
+        
+        ####### reference method 3 #######
+        Pji = g_ij*(vm_i**2 - vm_i*vm_j*torch.cos(va_i-va_j)) \
+            - b_ij*(vm_i*vm_j*torch.sin(va_i-va_j))
+        Qji = b_ij*(- vm_i**2 + vm_i*vm_j*torch.cos(va_i-va_j)) \
+            - g_ij*(vm_i*vm_j*torch.sin(va_i-va_j))
         
         # --- DEBUG ---
         # self._dPQ = torch.cat([Pji, Qji], dim=-1) # (num_edges, 2)
@@ -140,8 +146,8 @@ class PowerImbalance(MessagePassing):
         # --- DEBUG ---
         # self.node_dPQ = self._is_i.float() @ self._dPQ # correct, gecontroleerd.
         # --- DEBUG ---
-        dPi = -aggregated[:, 0:1] + x[:, 2:3] # (num_nodes, 1)
-        dQi = -aggregated[:, 1:2] + x[:, 3:4] # (num_nodes, 1)
+        dPi = aggregated[:, 0:1] + x[:, 2:3] # (num_nodes, 1)
+        dQi = aggregated[:, 1:2] + x[:, 3:4] # (num_nodes, 1)
 
         return torch.cat([dPi, dQi], dim=-1) # (num_nodes, 2)
         
