@@ -33,9 +33,9 @@ import pickle
 
 number_of_samples = 100000
 
-test_case = 'case14'
+test_case = 'case118'
 # base_net = pp.networks.case6470rte()
-base_net = pp.networks.case14()
+base_net = pp.networks.case118()
 base_net.bus['name'] = base_net.bus.index
 print(base_net.bus)
 print(base_net.line)
@@ -77,7 +77,7 @@ while True:
 
     counter += 1
     if counter % 100 == 0:
-        base_net = pp.networks.case14()    
+        base_net = pp.networks.case118()    
     else:
         net = base_net
     # net = pp.networks.case6470rte()
@@ -131,13 +131,15 @@ while True:
     net.load['p_mw'] = Pd
     net.load['q_mvar'] = Qd
 
-    reconstruction_case_list.append((r,x,vg,Pg,Pd,Qd))
+    
 
     try:    
         pp.runpp(net, algorithm='nr', init="results", numba=False)
     except:
         print(f'Failed to converge, current sample number: {len(edge_features_list)}')        
         continue        
+    
+    reconstruction_case_list.append((r,x,vg,Pg,Pd,Qd))
 
     # Graph feature
     # baseMVA = x[0]['baseMVA']

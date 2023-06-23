@@ -64,8 +64,8 @@ eval_loss_fn = Masked_L2_loss(regularize=False)
 
 grid_case = "14"
 net = pp.networks.case14()
-model_path = "./models/model_20230623-9552.pt"
-sample_number = 1000
+model_path = "./models/model_20230623-3426.pt"
+sample_number = 100000
 
 # Network parameters
 nfeature_dim = args.nfeature_dim
@@ -124,7 +124,7 @@ cases = load_cases("./data/raw/case" + grid_case + "_reconstruction_case.pkl")
 
 
 algorithms = ["nr", "iwamoto_nr",  "gs", "fdbx", "fdxb"]
-algorithms = ["nr", "iwamoto_nr",  "fdbx", "fdxb"]
+algorithms = ["nr", "iwamoto_nr"]
 # algorithms = ["nr"]
 times_auto_init = []
 
@@ -134,7 +134,7 @@ for a in algorithms:
     timer = 0
 
     for i, sample in enumerate(test_set_unnormalized[:sample_number]):
-        net = pp.networks.case30()
+        # net = pp.networks.case14()
         net = load_net(sample, net, cases[i])
         t0 = time.time()
         pp.runpp(net, algorithm=a, init="auto", numba=False)
@@ -150,7 +150,7 @@ for a in algorithms:
     timer = 0
 
     for i, sample in enumerate(test_set_unnormalized[:sample_number]):
-        net = pp.networks.case30()
+        # net = pp.networks.case14()
         net = load_net(sample, net, cases[i], results[i])
         t0 = time.time()
         pp.runpp(net, algorithm=a, init="results", numba=False)
