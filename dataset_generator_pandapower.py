@@ -28,15 +28,14 @@ import pickle
 
 # “fdxb” fast-decoupled (pypower implementation)
 
-
 # print(net)
 # print(net.keys())
 
 number_of_samples = 100000
 
-test_case = 'case6470rte'
-base_net = pp.networks.case6470rte()
-# base_net = pp.networks.case30()
+test_case = 'case14'
+# base_net = pp.networks.case6470rte()
+base_net = pp.networks.case14()
 base_net.bus['name'] = base_net.bus.index
 print(base_net.bus)
 print(base_net.line)
@@ -73,10 +72,16 @@ pd_original = base_net.load['p_mw'].values
 qd_original = base_net.load['q_mvar'].values
 net = base_net
 
+counter = 0
 while True:
-    # net = base_net
-    net = pp.networks.case6470rte()
-    # net = pp.networks.case30()
+
+    counter += 1
+    if counter % 100 == 0:
+        base_net = pp.networks.case14()    
+    else:
+        net = base_net
+    # net = pp.networks.case6470rte()
+    # net = pp.networks.case14()
     net.bus['name'] = base_net.bus.index
 
     # net.line['r_ohm_per_km'] = r_original
