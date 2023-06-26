@@ -125,7 +125,7 @@ class PowerFlowData(InMemoryDataset):
 
     def get_data_means_stds(self):
         assert self.normalize == True
-        return self.xymean, self.xystd, self.edgemean, self.edgestd
+        return self.xymean[:1, :], self.xystd[:1, :], self.edgemean[:1, :], self.edgestd[:1, :]
 
     def _normalize_dataset(self, data, slices) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         if not self.normalize:

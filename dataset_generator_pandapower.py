@@ -1,6 +1,8 @@
 import time
+import pandas as pd
 import pandapower as pp
 import numpy as np
+import networkx as nx
 # write file documentation here
 
 
@@ -31,10 +33,72 @@ import numpy as np
 # print(net)
 # print(net.keys())
 
-number_of_samples = 1000
+def create_case3():
+    net = pp.create_empty_network()
+    net.sn_mva = 100
+    b0 = pp.create_bus(net, vn_kv=345., name='bus 0')
+    b1 = pp.create_bus(net, vn_kv=345., name='bus 1')
+    b2 = pp.create_bus(net, vn_kv=345., name='bus 2')
+    pp.create_ext_grid(net, bus=b0, vm_pu=1.02, name="Grid Connection")
+    pp.create_load(net, bus=b2, p_mw=10.3, q_mvar=3, name="Load")
+    # pp.create_gen(net, bus=b1, p_mw=0.5, vm_pu=1.03, name="Gen", max_p_mw=1)
+    pp.create_line(net, from_bus=b0, to_bus=b1, length_km=10, name='line 01', std_type='NAYY 4x50 SE')
+    pp.create_line(net, from_bus=b1, to_bus=b2, length_km=5, name='line 01', std_type='NAYY 4x50 SE')
+    pp.create_line(net, from_bus=b2, to_bus=b0, length_km=20, name='line 01', std_type='NAYY 4x50 SE')
+    
+    net.line['c_nf_per_km'] = pd.Series(0., index=net.line['c_nf_per_km'].index, name=net.line['c_nf_per_km'].name)
+    
+    return net
 
-test_case = 'case9'
-base_net = pp.networks.case9()
+def remove_c_nf(net):
+    net.line['c_nf_per_km'] = pd.Series(0., index=net.line['c_nf_per_km'].index, name=net.line['c_nf_per_km'].name)
+    
+def unify_vn(net):
+    for node_id in range(net.bus['vn_kv'].shape[0]):
+        net.bus['vn_kv'][node_id] = max(net.bus['vn_kv'])
+
+def get_trafo_z_pu(net):
+    # if random:
+    #     replace_line_r_ohm = max(0., 0.1*np.random.normal(replace_line_r_ohm, np.abs(replace_line_r_ohm)*0.05))
+    #     replace_line_x_ohm = max(0., 0.1*np.random.normal(replace_line_x_ohm, np.abs(replace_line_x_ohm)*0.05))
+    # for trafo_id in net.trafo.index:
+    #     from_bus, to_bus = net.trafo.iloc[trafo_id]['hv_bus'], net.trafo.iloc[trafo_id]['lv_bus']
+    #     pp.create_line_from_parameters(net, from_bus=from_bus, to_bus=to_bus, length_km=1., 
+    #                                    r_ohm_per_km=replace_line_r_ohm, x_ohm_per_km=replace_line_r_ohm,
+    #                                    c_nf_per_km=0., max_i_ka=3.e4,
+    #                                    max_loading_percent=100.,
+    #                                    type='ol')
+    # pp.drop_trafos(net, net.trafo.index, table='trafo')
+    for trafo_id in net.trafo.index:
+        net.trafo['i0_percent'][trafo_id] = 0.
+        net.trafo['pfe_kw'][trafo_id] = 0.
+    
+    z_pu = net.trafo['vk_percent'].values / 100. * 1000. / net.sn_mva
+    r_pu = net.trafo['vkr_percent'].values / 100. * 1000. / net.sn_mva
+    x_pu = np.sqrt(z_pu**2 - r_pu**2)
+    
+    return x_pu, r_pu
+    # raise NotImplementedError
+    
+def get_line_z_pu(net):
+    r = net.line['r_ohm_per_km'].values * net.line['length_km'] 
+    x = net.line['x_ohm_per_km'].values * net.line['length_km']
+    from_bus = net.line['from_bus']
+    to_bus = net.line['to_bus']
+    vn_kv_to = net.bus['vn_kv'][to_bus].to_numpy()
+    vn_kv_to = pd.Series(vn_kv_to)
+    zn = vn_kv_to**2 / net.sn_mva
+    r_pu = r/zn
+    x_pu = x/zn
+    
+    return r_pu, x_pu
+
+number_of_samples = 100
+
+test_case = 'case118mini'
+base_net_create = pp.networks.case118
+# base_net_create = create_case3
+base_net = base_net_create()
 base_net.bus['name'] = base_net.bus.index
 print(base_net.bus)
 print(base_net.line)
@@ -58,7 +122,10 @@ graph_feature_list = []
 
 while True:
     # net = base_net
-    net = pp.networks.case9()
+    net = base_net_create()
+    remove_c_nf(net)
+    # unify_vn(net)
+    trafo_r_pu, trafo_x_pu = get_trafo_z_pu(net)
     net.bus['name'] = base_net.bus.index
 
     r = net.line['r_ohm_per_km'].values    
@@ -69,12 +136,12 @@ while True:
     # b = case['branch'][:, 4]
     # tau = case['branch'][:, 8]  # ratio
 
-    Pmax = net.gen['max_p_mw'].values
+    Pg = net.gen['p_mw'].values
     # Pmin = 
     Pd = net.load['p_mw'].values
     Qd = net.load['q_mvar'].values
 
-    r = np.random.uniform(0.8*r, 1.2*r, r.shape[0]) + np.random.normal(0, 0.1, r.shape[0])
+    r = np.random.uniform(0.8*r, 1.2*r, r.shape[0])
     x = np.random.uniform(0.8*x, 1.2*x, x.shape[0])
     # c = np.random.uniform(0.8*c, 1.2*c, c.shape[0])
     le = np.random.uniform(0.8*le, 1.2*le, le.shape[0])
@@ -82,18 +149,18 @@ while True:
     # tau = np.random.uniform(0.8*tau, 1.2*tau, case['branch'].shape[0])
     # angle = np.random.uniform(-0.2, 0.2, case['branch'].shape[0])
    
-    vg = np.random.uniform(0.95, 1.05, net.gen['vm_pu'].shape[0])
-    Pg = np.random.uniform(0.25*Pmax, 0.75*Pmax, net.gen['p_mw'].shape[0])
+    Vg = np.random.uniform(0.95, 1.05, net.gen['vm_pu'].shape[0])
+    Pg = np.random.normal(Pg, 0.2*np.abs(Pg), net.gen['p_mw'].shape[0])
     
     # Pd = np.random.uniform(0.5*Pd, 1.5*Pd, net.load['p_mw'].shape[0])
-    Pd = np.random.normal(Pd, 0.2*Pd, net.load['p_mw'].shape[0])
+    Pd = np.random.normal(Pd, 0.2*np.abs(Pd), net.load['p_mw'].shape[0])
     # Qd = np.random.uniform(0.5*Qd, 1.5*Qd, net.load['q_mvar'].shape[0])
-    Qd = np.random.normal(Qd, 0.2*Qd, net.load['q_mvar'].shape[0])
+    Qd = np.random.normal(Qd, 0.2*np.abs(Qd), net.load['q_mvar'].shape[0])
     
-    net.line['r_ohm_per_km'] = r
-    net.line['x_ohm_per_km'] = x
+    net.line['r_ohm_per_km'] = r / 10
+    net.line['x_ohm_per_km'] = x / 10
 
-    net.gen['vm_pu'] = vg
+    net.gen['vm_pu'] = Vg
     net.gen['p_mw'] = Pg
 
     net.load['p_mw'] = Pd
@@ -113,11 +180,20 @@ while True:
     edge_features = np.zeros((net.line.shape[0], 7))
     edge_features[:, 0] = net.line['from_bus'].values + 1
     edge_features[:, 1] = net.line['to_bus'].values + 1
-    edge_features[:, 2] = net.line['r_ohm_per_km'].values * net.line['length_km'].values
-    edge_features[:, 3] = net.line['x_ohm_per_km'].values * net.line['length_km'].values
+    edge_features[:, 2], edge_features[:, 3] = get_line_z_pu(net)
     edge_features[:, 4] = 0
     edge_features[:, 5] = 0
     edge_features[:, 6] = 0
+    
+    trafo_edge_features = np.zeros((net.trafo.shape[0], 7))
+    trafo_edge_features[:, 0] = net.trafo['hv_bus'].values + 1
+    trafo_edge_features[:, 1] = net.trafo['lv_bus'].values + 1
+    trafo_edge_features[:, 2], trafo_edge_features[:, 3] = get_trafo_z_pu(net)
+    trafo_edge_features[:, 4] = 0
+    trafo_edge_features[:, 5] = 0
+    trafo_edge_features[:, 6] = 0
+    
+    edge_features = np.concatenate((edge_features, trafo_edge_features), axis=0)
 
     # Create a vector of node features including index, type, Vm, Va, Pd, Qd, Gs, Bs, Pg
     # case['bus'] = x[0]['bus']
@@ -137,7 +213,7 @@ while True:
         index = np.where(net.gen['bus'].values[j] == net.bus['name'])[0][0]        
         vm[index] = net.gen['vm_pu'].values[j]  # Vm = Vg
         types[index] = 1  # type = generator
-        node_features_x[index, 8] = net.gen['p_mw'].values[j]  # Pg
+        node_features_x[index, 8] = net.gen['p_mw'].values[j] / net.sn_mva  # Pg / pu
     
     node_features_x[:, 2] = vm  # Vm
     node_features_x[:, 1] = types  # type
@@ -145,8 +221,8 @@ while True:
     for j in range(net.load.shape[0]):    
         # find index of case['gen'][j,0] in case['bus'][:,0]
         index = np.where(net.load['bus'].values[j] == net.bus['name'])[0][0]        
-        node_features_x[index, 4] = Pd[j]  # Pd
-        node_features_x[index, 5] = Qd[j] # Qd
+        node_features_x[index, 4] = Pd[j] / net.sn_mva  # Pd / pu
+        node_features_x[index, 5] = Qd[j] / net.sn_mva  # Qd / pu
 
     # Create a vector of node features including index, type, Vm, Va, Pd, Qd, Gs, Bs    
     node_features_y = np.zeros((n, 8))
@@ -156,8 +232,8 @@ while True:
     node_features_y[:, 2] = net.res_bus['vm_pu']  # Vm
     # Va ----This changes for every bus excecpt slack bus
     node_features_y[:, 3] = net.res_bus['va_degree']  # Va
-    node_features_y[:, 4] = net.res_bus['p_mw']  # P
-    node_features_y[:, 5] = net.res_bus['q_mvar']  # Q
+    node_features_y[:, 4] = net.res_bus['p_mw'] / net.sn_mva    # P / pu
+    node_features_y[:, 5] = net.res_bus['q_mvar'] / net.sn_mva  # Q / pu
     # node_features_y[:, 6] = case['bus'][:, 4]  # Gs
     # node_features_y[:, 7] = case['bus'][:, 5]  # Bs
 

@@ -9,11 +9,11 @@ from utils.custom_loss_functions import PowerImbalance
 
 def main():
     # TODO import trainset, select an data.y, calculate the imbalance
-    trainset = PowerFlowData(root='data', case='9', split=[.5, .3, .2], task='train',
-                             normalize=False)
-    sample = trainset[2]
+    trainset = PowerFlowData(root='data', case='118mini', split=[.5, .3, .2], task='train',
+                             normalize=True)
+    sample = trainset[3]
     # loss_fn = PowerImbalance(trainset.xymean, trainset.xystd)
-    loss_fn = PowerImbalance(torch.zeros(1), torch.ones(1))
+    loss_fn = PowerImbalance(*trainset.get_data_means_stds())
     x = torch.arange(18).reshape((3, 6)).float()
     edge_index = torch.tensor([
         [0, 1, 1, 2],
@@ -27,7 +27,7 @@ def main():
     ]).float()
     
     # loss = loss_fn(x, edge_index, edge_attr)
-    sample.y = sample.y[:, 2:]
+    sample.y = sample.y[:, :]
     loss = loss_fn(sample.y, sample.edge_index, sample.edge_attr)
     print(loss)
     
