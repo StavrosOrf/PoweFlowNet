@@ -10,6 +10,7 @@ from tqdm import tqdm
 
 from datasets.PowerFlowData import PowerFlowData
 from networks.MPN import MPN, MPN_simplenet
+from networks.GCN import GCN
 from utils.argument_parser import argument_parser
 from utils.training import train_epoch, append_to_json
 from utils.evaluation import evaluate_epoch
@@ -35,12 +36,13 @@ def main():
     # Training parameters
     data_dir = args.data_dir
     num_epochs = args.num_epochs
-    loss_fn = Masked_L2_loss(regularize=args.regularize, regcoeff=args.regularization_coeff)
+    loss_fn = Masked_L2_loss(regularize=args.regularize,
+                             regcoeff=args.regularization_coeff)
     eval_loss_fn = Masked_L2_loss(regularize=False)
     lr = args.lr
     batch_size = args.batch_size
     grid_case = args.case
-    
+
     # Network parameters
     nfeature_dim = args.nfeature_dim
     efeature_dim = args.efeature_dim
@@ -65,13 +67,16 @@ def main():
     # torch.backends.cudnn.benchmark = False
 
     # Step 1: Load data
-    trainset = PowerFlowData(root=data_dir, case=grid_case, split=[.5, .2, .3], task='train')
-    valset = PowerFlowData(root=data_dir, case=grid_case, split=[.5, .2, .3], task='val')
-    testset = PowerFlowData(root=data_dir, case=grid_case, split=[.5, .2, .3], task='test')
+    trainset = PowerFlowData(
+        root=data_dir, case=grid_case, split=[.5, .2, .3], task='train')
+    valset = PowerFlowData(root=data_dir, case=grid_case,
+                           split=[.5, .2, .3], task='val')
+    testset = PowerFlowData(root=data_dir, case=grid_case,
+                            split=[.5, .2, .3], task='test')
     train_loader = DataLoader(trainset, batch_size=batch_size, shuffle=True)
     val_loader = DataLoader(valset, batch_size=batch_size, shuffle=False)
     test_loader = DataLoader(testset, batch_size=batch_size, shuffle=False)
-    
+
     # Step 2: Create model and optimizer (and scheduler)
     node_in_dim, node_out_dim, edge_dim = trainset.get_data_dimensions()
     assert node_in_dim == 16
@@ -83,19 +88,24 @@ def main():
         n_gnn_layers=n_gnn_layers,
         K=conv_K,
         dropout_rate=dropout_rate
-    ).to(device) 
+    ).to(device)
 
-    #calculate model size
+    model = GCN(input_dim=node_in_dim,
+                output_dim=output_dim,
+                hidden_dim=hidden_dim)
+
+    # calculate model size
     pytorch_total_params = sum(p.numel() for p in model.parameters())
     print("Total number of parameters: ", pytorch_total_params)
-    
+
     optimizer = torch.optim.AdamW(model.parameters(), lr=lr)
     # scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer,
     #                                                        mode='min',
     #                                                        factor=0.5,
     #                                                        patience=5,
     #                                                        verbose=True)
-    scheduler = torch.optim.lr_scheduler.OneCycleLR(optimizer, max_lr=lr, steps_per_epoch=len(train_loader), epochs=num_epochs)
+    scheduler = torch.optim.lr_scheduler.OneCycleLR(
+        optimizer, max_lr=lr, steps_per_epoch=len(train_loader), epochs=num_epochs)
 
     # Step 3: Train model
     best_train_loss = 10000.
@@ -137,7 +147,6 @@ def main():
         print(f"Epoch {epoch+1} / {num_epochs}: train_loss={train_loss:.4f}, val_loss={val_loss:.4f}, best_val_loss={best_val_loss:.4f}")
     print(f"Best validation loss: {best_val_loss:.4f}")
 
-    
     # Step 4: Evaluate model
     if args.save:
         _to_load = torch.load(SAVE_MODEL_PATH)
