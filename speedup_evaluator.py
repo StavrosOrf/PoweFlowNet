@@ -64,8 +64,10 @@ eval_loss_fn = Masked_L2_loss(regularize=False)
 
 grid_case = "14"
 net = pp.networks.case14()
-model_path = "./models/model_20230623-3426.pt"
-sample_number = 100000
+model_path = "./models/testing/mpn_14.pt"
+# model_path = "./models/model_20230623-3426.pt"
+
+sample_number = 1000
 
 # Network parameters
 nfeature_dim = args.nfeature_dim
@@ -125,50 +127,92 @@ cases = load_cases("./data/raw/case" + grid_case + "_reconstruction_case.pkl")
 
 algorithms = ["nr", "iwamoto_nr",  "gs", "fdbx", "fdxb"]
 algorithms = ["nr", "iwamoto_nr"]
-# algorithms = ["nr"]
+algorithms = ["nr"]
+results_nr = []
 times_auto_init = []
-
+loss_auto_init = 0
 # Run the power flow with auto_init
 for a in algorithms:
     print(f'Auto: Running {a}...')
     timer = 0
 
-    for i, sample in enumerate(test_set_unnormalized[:sample_number]):
-        # net = pp.networks.case14()
+    for i, sample in enumerate(testset[:sample_number]):
+        net = pp.networks.case14()
         net = load_net(sample, net, cases[i])
         t0 = time.time()
         pp.runpp(net, algorithm=a, init="auto", numba=False)
         t1 = time.time()
+        # gt = sample.y * test_set_std + test_set_mean
+        # loss_auto_init += eval_loss_fn(torch.tensor(net.res_bus.values), gt[:,:4], sample.x[:,10:14])
+        result_pf = net.res_bus.values        
+        result_pf = (torch.tensor(result_pf) - test_set_mean[:4]) / test_set_std[:4]
+        results_nr.append(result_pf)
+        # loss_auto_init += eval_loss_fn(result_pf, sample.y[:,:4], sample.x[:,10:14]).item()
+        loss_auto_init += 0
         timer += t1 - t0
 
     times_auto_init.append(timer)
 
 # Run the power flow with the results as initial values
 times_result_init = []
+loss_result_init = 0
 for a in algorithms:
     print(f'Results: Running {a}...')
     timer = 0
 
-    for i, sample in enumerate(test_set_unnormalized[:sample_number]):
-        # net = pp.networks.case14()
+    for i, sample in enumerate(testset[:sample_number]):
+        net = pp.networks.case14()
         net = load_net(sample, net, cases[i], results[i])
         t0 = time.time()
         pp.runpp(net, algorithm=a, init="results", numba=False)
         t1 = time.time()
+
+        result_pf = net.res_bus.values
+        result_pf = (torch.tensor(result_pf) - test_set_mean[:4]) / test_set_std[:4]        
+        loss_result_init += eval_loss_fn(result_pf, results_nr[i], sample.x[:,10:14]).item()
         timer += t1 - t0
 
     times_result_init.append(timer)
+
+# Run the DC power flow
+results_dc = []
+times_dc = []
+loss_dc = 0
+for a in algorithms:
+    print(f'DC: Running {a}...')
+    timer = 0
+    for i, sample in enumerate(testset[:sample_number]):
+        net = pp.networks.case14()
+        net = load_net(sample, net, cases[i], results[i])
+        t0 = time.time()
+        pp.rundcpp(net, algorithm=a, numba=False)
+        t1 = time.time()
+        results_dc.append(net.res_bus[["vm_pu", "va_degree", "p_mw", "q_mvar"]].values)
+        results_dc[i] = (torch.tensor(results_dc[i]) - test_set_mean[:4]) / test_set_std[:4]
+        # loss_dc += eval_loss_fn(results_dc[i], sample.y[:,:4], sample.x[:,10:14]).item()
+        loss_dc += eval_loss_fn(results_dc[i], results_nr[i], sample.x[:,10:14]).item()
+        # loss_dc += eval_loss_fn(torch.tensor(results_dc[i]), gt[:,:4], sample.x[:,10:14]).item()
+        timer += t1 - t0
+        # print(results_dc[i], sample.y[:,:4])
+
+    times_dc.append(timer)
 
 print("\n\n===========================================")
 print("Results with auto_init:\n")
 
 for a in algorithms:
-    print(f"{a}: {times_auto_init[algorithms.index(a)]}")
+    print(f"{a}: {times_auto_init[algorithms.index(a)]/sample_number}")
+    print(f'Loss auto_init: {loss_auto_init/sample_number}')
 print("-------------------------------------------")
-print("GNNs: ", time_end_gnn - time_start_gnn)
+print("GNNs: ", (time_end_gnn - time_start_gnn)/sample_number)
 print("-------------------------------------------")
 print("Results with results init: \n")
 for a in algorithms:
-    print(f"{a}: {times_result_init[algorithms.index(a)]}")
-
+    print(f"{a}: {times_result_init[algorithms.index(a)]/sample_number}")
+    print(f'Loss result_init: {loss_result_init/sample_number}')
+print("-------------------------------------------")
+print("Results DC: \n")
+for a in algorithms:
+    print(f"{a}: {times_dc[algorithms.index(a)]/sample_number}")
+    print(f'Loss DC: {loss_dc/sample_number}')
 print("\n\n===========================================")

@@ -16,7 +16,8 @@ Models:
     - MLP
     - Newton-Raphson method
 """
-cases = ['case14','case118',"case9241pegase"]
+cases = ['case14','case118','case6470rte']
+# cases = ['case6470rte']
 
 for case in cases:
 
@@ -24,7 +25,10 @@ for case in cases:
     print(f'\n\nCase {case_name} is being evaluated...')
     #Load testing data
     testset = PowerFlowData(root="./data/", case=case_name, split=[.5, .2, .3], task='test')
-    sample_number = 10
+    sample_number = 1000
+    if sample_number > len(testset):
+        sample_number = len(testset)
+    print(f'Number of samples: {sample_number}')
 
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
