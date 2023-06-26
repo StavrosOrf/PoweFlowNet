@@ -13,7 +13,7 @@ from networks.MPN import MPN, MPN_simplenet
 from utils.argument_parser import argument_parser
 from utils.training import train_epoch, append_to_json
 from utils.evaluation import evaluate_epoch
-from utils.custom_loss_functions import Masked_L2_loss
+from utils.custom_loss_functions import Masked_L2_loss, PowerImbalance
 
 import wandb
 
@@ -71,6 +71,11 @@ def main():
     train_loader = DataLoader(trainset, batch_size=batch_size, shuffle=True)
     val_loader = DataLoader(valset, batch_size=batch_size, shuffle=False)
     test_loader = DataLoader(testset, batch_size=batch_size, shuffle=False)
+    
+    ## [Optional] physics-informed loss function
+    if args.train_loss_fn == 'power_imbalance':
+        # overwrite the loss function
+        loss_fn = PowerImbalance(*trainset.get_data_means_stds()).to(device)
     
     # Step 2: Create model and optimizer (and scheduler)
     node_in_dim, node_out_dim, edge_dim = trainset.get_data_dimensions()
