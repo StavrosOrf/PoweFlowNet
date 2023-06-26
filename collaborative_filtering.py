@@ -9,67 +9,8 @@ from utils.custom_loss_functions import Masked_L2_loss
 from pygsp import graphs
 import torch
 
-data_dir = "./data/"
-grid_case = "5"
-grid_case = "14"
-# grid_case = "9"
-# grid_case = "6470rte"
-# grid_case = "118"
 
-# Load the dataset
-trainset = PowerFlowData(root=data_dir, case=grid_case,
-                         split=[.5, .2, .3], task='train')
-valset = PowerFlowData(root=data_dir, case=grid_case,
-                       split=[.5, .2, .3], task='val')
-testset = PowerFlowData(root=data_dir, case=grid_case,
-                        split=[.5, .2, .3], task='test')
-# train_loader = DataLoader(trainset, batch_size=batch_size, shuffle=True)
-# val_loader = DataLoader(valset, batch_size=batch_size, shuffle=False)
-# test_loader = DataLoader(testset, batch_size=batch_size, shuffle=False)
-
-# Load adjacency matrix from file
-file_path = data_dir + "/raw/case" + str(grid_case) + '_adjacency_matrix.npy'
-adjacency_matrix = np.load(file_path)
-print(adjacency_matrix.shape)
-
-num_of_nodes = adjacency_matrix.shape[0]
-print(f'Number of nodes: {num_of_nodes}')
-
-# create graph from adjacency matrix
-G = graphs.Graph(adjacency_matrix)
-
-# get incidence matrix
-G.compute_differential_operator()
-B = G.D.toarray()
-print(f'B: {B.shape}')
-# get laplacian matrix
-L = G.L.toarray()
-print(f'Laplacian: {L.shape}')
-
-# Get the data
-
-# x_gt is the actual values
-x_gt = trainset.y[:num_of_nodes, :4].numpy()
-print("x_gt: ", x_gt.shape, x_gt[0, :])
-
-# y is the observations, i.e. the features with missing values
-y = trainset.x[:num_of_nodes, 4:8]
-print("y: ", y.shape, y[0, :])
-
-# mask of values to be predicted
-mask = trainset.x[:num_of_nodes, 10:14]
-
-# find values x from ys
-# x_hat is the predicted values of the features with missing values
-
-# Create the problem
-rnmse_list = []
-print("problem is constructed...")
-f = x_gt.shape[1]
-print("f: ", f)
-
-
-def collaborative_filtering_testing(y, mask, B, x_gt, eval_loss_fn=Masked_L2_loss(regularize=False)):
+def collaborative_filtering_testing(y, mask, B, x_gt,f, eval_loss_fn=Masked_L2_loss(regularize=False)):
 
     # decision variables
     z_hat = cp.Variable((x_gt.shape[0], x_gt.shape[1]))
@@ -89,8 +30,8 @@ def collaborative_filtering_testing(y, mask, B, x_gt, eval_loss_fn=Masked_L2_los
     alphas = np.arange(0, 5, 0.5)
     aplhas = []
     alphas = [0.1, 0.5, 1, 10]
-    lambda_L_list = np.arange(0, 10, 0.5)
-    lambda_z_list = np.arange(0, 10, 0.5)
+    lambda_L_list = np.arange(0, 3, 0.5)
+    lambda_z_list = np.arange(0, 3, 0.5)
 
     results = np.zeros((len(lambda_L_list), len(lambda_z_list)))
 
@@ -102,9 +43,9 @@ def collaborative_filtering_testing(y, mask, B, x_gt, eval_loss_fn=Masked_L2_los
             print("problem is solved...")
             prob.solve()
             print("status:", prob.status)
-            rnmse = np.sqrt(np.square(z_hat.value-x_gt).mean())/y.std()
-            rnmse_list.append(rnmse)
-            print(f"The rNMSE is: {np.round(rnmse,4)}")
+            # rnmse = np.sqrt(np.square(z_hat.value-x_gt).mean())/y.std()
+            # rnmse_list.append(rnmse)
+            # print(f"The rNMSE is: {np.round(rnmse,4)}")
 
             # print("z_hat: ", z_hat.value*mask.numpy())
             # print("x_gt: ", x_gt*mask.numpy())
@@ -137,10 +78,71 @@ def tikhonov_regularizer(alpha, L, y, mask):
 
     return z_hat
 
-collaborative_filtering_testing(y, mask, B,x_gt)
+ 
+if __name__ == "__main__":
+    data_dir = "./data/"
+    grid_case = "5"
+    grid_case = "14"
+    # grid_case = "9"
+    # grid_case = "6470rte"
+    # grid_case = "118"
 
-eval_loss_fn=Masked_L2_loss(regularize=False)
-result = tikhonov_regularizer(1.25, L, y, mask)
+    # Load the dataset
+    trainset = PowerFlowData(root=data_dir, case=grid_case,
+                            split=[.5, .2, .3], task='train')
+    valset = PowerFlowData(root=data_dir, case=grid_case,
+                        split=[.5, .2, .3], task='val')
+    testset = PowerFlowData(root=data_dir, case=grid_case,
+                            split=[.5, .2, .3], task='test')
+    # train_loader = DataLoader(trainset, batch_size=batch_size, shuffle=True)
+    # val_loader = DataLoader(valset, batch_size=batch_size, shuffle=False)
+    # test_loader = DataLoader(testset, batch_size=batch_size, shuffle=False)
 
-loss = eval_loss_fn(torch.tensor(result), torch.tensor(x_gt), mask)
-print("loss: ", loss.item())
+    # Load adjacency matrix from file
+    file_path = data_dir + "/raw/case" + str(grid_case) + '_adjacency_matrix.npy'
+    adjacency_matrix = np.load(file_path)
+    print(adjacency_matrix.shape)
+
+    num_of_nodes = adjacency_matrix.shape[0]
+    print(f'Number of nodes: {num_of_nodes}')
+
+    # create graph from adjacency matrix
+    G = graphs.Graph(adjacency_matrix)
+
+    # get incidence matrix
+    G.compute_differential_operator()
+    B = G.D.toarray()
+    print(f'B: {B.shape}')
+    # get laplacian matrix
+    L = G.L.toarray()
+    print(f'Laplacian: {L.shape}')
+
+    # Get the data
+
+    # x_gt is the actual values
+    x_gt = trainset.y[:num_of_nodes, :4].numpy()
+    print("x_gt: ", x_gt.shape, x_gt[0, :])
+
+    # y is the observations, i.e. the features with missing values
+    y = trainset.x[:num_of_nodes, 4:8]
+    print("y: ", y.shape, y[0, :])
+
+    # mask of values to be predicted
+    mask = trainset.x[:num_of_nodes, 10:14]
+
+    # find values x from ys
+    # x_hat is the predicted values of the features with missing values
+
+    # Create the problem
+    rnmse_list = []
+    print("problem is constructed...")
+    f = x_gt.shape[1]
+    print("f: ", f)
+
+    collaborative_filtering_testing(y, mask, B,x_gt,f)
+
+    eval_loss_fn=Masked_L2_loss(regularize=False)
+    result = tikhonov_regularizer(1.25, L, y, mask)
+
+    loss = eval_loss_fn(torch.tensor(result), torch.tensor(x_gt), mask)
+    print("loss: ", loss.item())
