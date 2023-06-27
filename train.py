@@ -13,7 +13,7 @@ from networks.MPN import MPN, MPN_simplenet, SkipMPN, MaskEmbdMPN, MultiConvNet,
 from utils.argument_parser import argument_parser
 from utils.training import train_epoch, append_to_json
 from utils.evaluation import evaluate_epoch
-from utils.custom_loss_functions import Masked_L2_loss, PowerImbalance
+from utils.custom_loss_functions import Masked_L2_loss, PowerImbalance, MixedMSEPoweImbalance
 
 import wandb
 
@@ -83,6 +83,8 @@ def main():
         loss_fn = PowerImbalance(*trainset.get_data_means_stds()).to(device)
     elif args.train_loss_fn == 'masked_l2':
         loss_fn = Masked_L2_loss(regularize=args.regularize, regcoeff=args.regularization_coeff)
+    elif args.train_loss_fn == 'mixed_mse_power_imbalance':
+        loss_fn = MixedMSEPoweImbalance(*trainset.get_data_means_stds(), alpha=0.9).to(device)
     else:
         loss_fn = torch.nn.MSELoss()
     
@@ -173,7 +175,8 @@ def main():
                 'train_log': TRAIN_LOG_PATH,
                 'saved_file': SAVE_MODEL_PATH,
                 'model': args.model,
-                'train_loss_fn': args.train_loss_fn
+                'train_loss_fn': args.train_loss_fn,
+                'args': args
             }
         )
         torch.save(train_log, TRAIN_LOG_PATH)

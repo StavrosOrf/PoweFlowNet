@@ -34,7 +34,7 @@ def argument_parser():
     parser.add_argument('--data-dir', type=str, default='data', help='Path to data directory')
     parser.add_argument('--train_loss_fn', 
                         type=str, default='masked_l2', 
-                        choices=['masked_l2', 'power_imbalance', 'mse_loss'],
+                        choices=['masked_l2', 'power_imbalance', 'mse_loss', 'mixed_mse_power_imbalance'],
                         help='Training loss function')
     parser.add_argument('--num-epochs', type=int, default=100, help='Number of epochs to train for')
     parser.add_argument('--batch-size', type=int, default=128, help='Batch size')

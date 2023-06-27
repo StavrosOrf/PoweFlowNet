@@ -9,7 +9,7 @@ from torch.optim.lr_scheduler import LRScheduler
 import torch.nn as nn
 from tqdm import tqdm
 
-from utils.custom_loss_functions import Masked_L2_loss, PowerImbalance
+from utils.custom_loss_functions import Masked_L2_loss, PowerImbalance, MixedMSEPoweImbalance
 
 
 def append_to_json(log_path, run_id, result):
@@ -66,6 +66,8 @@ def train_epoch(
             masked_out = out*data.x[:, 10:] \
                         + data.x[:, 4:10]*(1-data.x[:, 10:])
             loss = loss_fn(masked_out, data.edge_index, data.edge_attr)
+        elif isinstance(loss_fn, MixedMSEPoweImbalance):
+            loss = loss_fn(out, data.edge_index, data.edge_attr, data.y)
         else:
             loss = loss_fn(out, data.y)
 
