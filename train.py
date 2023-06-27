@@ -90,9 +90,9 @@ def main():
         dropout_rate=dropout_rate
     ).to(device)
 
-    model = GCN(input_dim=node_in_dim,
-                output_dim=output_dim,
-                hidden_dim=hidden_dim)
+    # model = GCN(input_dim=node_in_dim,
+    #             output_dim=output_dim,
+    #             hidden_dim=hidden_dim)
 
     # calculate model size
     pytorch_total_params = sum(p.numel() for p in model.parameters())
