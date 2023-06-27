@@ -3,11 +3,12 @@
 
 # this one gets ??? accuracy after 200 epochs
 # WITH THIS ONE USE MODEL MPN
-python3 test.py --num-epochs 200\
+python3 train.py --cfg_json ./configs/large.json\
+                --num-epochs 2000\
                 --data-dir ~/data/volume_2/power_flow_dataset\
                 --batch-size 128\
-                --train_loss_fn mixed_mse_power_imbalance\
+                --train_loss_fn mse_loss\
                 --lr 0.001\
-                --case 14v2\
+                --case 118v2\
                 --model MaskEmbdMultiMPN\
                 --save

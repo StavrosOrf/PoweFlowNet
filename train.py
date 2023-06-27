@@ -175,6 +175,7 @@ def main():
                 'train_log': TRAIN_LOG_PATH,
                 'saved_file': SAVE_MODEL_PATH,
                 'model': args.model,
+                'train_case': args.case,
                 'train_loss_fn': args.train_loss_fn,
                 'args': args
             }
