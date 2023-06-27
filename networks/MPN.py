@@ -351,7 +351,6 @@ class MultiMPN(nn.Module):
         
         edge_index, edge_features = self.undirect_graph(edge_index, edge_features)
         
-        x = self.edge_aggr(x, edge_index, edge_features)
         for i in range(len(self.layers)-1):
             if isinstance(self.layers[i], EdgeAggregation):
                 x = self.layers[i](x=x, edge_index=edge_index, edge_attr=edge_features)
