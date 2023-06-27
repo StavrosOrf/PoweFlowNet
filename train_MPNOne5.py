@@ -131,6 +131,9 @@ def main():
                     'args': args,
                     'val_loss': best_val_loss,
                     'model_state_dict': model.state_dict(),
+                    'model': "1 layer MPN",
+                    'train case': trainset.case,
+                    'test case': testset.case,
                 }
                 os.makedirs('models', exist_ok=True)
                 torch.save(_to_save, SAVE_MODEL_PATH)
@@ -160,6 +163,9 @@ def main():
                 'test_loss': f"{test_loss: .4f}",
                 'train_log': TRAIN_LOG_PATH,
                 'saved_file': SAVE_MODEL_PATH,
+                'model': "1 layer MPN",
+                'train case': trainset.case,
+                'test case': testset.case,
             }
         )
         torch.save(train_log, TRAIN_LOG_PATH)

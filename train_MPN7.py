@@ -69,7 +69,7 @@ def main():
     # Step 1: Load data
     trainset = PowerFlowData(root=data_dir, case=grid_case, split=[.5, .2, .3], task='train')
     valset = PowerFlowData(root=data_dir, case=grid_case, split=[.5, .2, .3], task='val')
-    testset = PowerFlowData(root=data_dir, case=118, split=[.5, .2, .3], task='test')
+    testset = PowerFlowData(root=data_dir, case=grid_case, split=[.5, .2, .3], task='test')
     train_loader = DataLoader(trainset, batch_size=batch_size, shuffle=True)
     val_loader = DataLoader(valset, batch_size=batch_size, shuffle=False)
     test_loader = DataLoader(testset, batch_size=batch_size, shuffle=False)
@@ -132,6 +132,9 @@ def main():
                     'args': args,
                     'val_loss': best_val_loss,
                     'model_state_dict': model.state_dict(),
+                    'model': "Basic MPN",
+                    'train case': trainset.case,
+                    'test case': testset.case,
                 }
                 os.makedirs('models', exist_ok=True)
                 torch.save(_to_save, SAVE_MODEL_PATH)

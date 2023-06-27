@@ -9,7 +9,7 @@ from torch_geometric.loader import DataLoader
 from tqdm import tqdm
 
 from datasets.PowerFlowData import PowerFlowData
-from networks.MPN import MPN, MPN_simplenet
+from networks.MPNNoMP import MPN, MPN_simplenet
 from utils.argument_parser import argument_parser
 from utils.training import train_epoch, append_to_json
 from utils.evaluation import evaluate_epoch
@@ -34,9 +34,9 @@ def main():
 
     # Training parameters
     data_dir = args.data_dir
-    #data_dir1 = 'data1'
+    data_dir1 = 'data1'
     #print(data_dir)
-    num_epochs = 3 #args.num_epochs
+    num_epochs = args.num_epochs
     loss_fn = Masked_L2_loss(regularize=args.regularize, regcoeff=args.regularization_coeff)
     eval_loss_fn = Masked_L2_loss(regularize=False)
     lr = args.lr
@@ -69,7 +69,7 @@ def main():
     # Step 1: Load data
     trainset = PowerFlowData(root=data_dir, case=grid_case, split=[.5, .2, .3], task='train')
     valset = PowerFlowData(root=data_dir, case=grid_case, split=[.5, .2, .3], task='val')
-    testset = PowerFlowData(root=data_dir, case=118, split=[.5, .2, .3], task='test')
+    testset = PowerFlowData(root=data_dir, case=grid_case, split=[.5, .2, .3], task='test')
     train_loader = DataLoader(trainset, batch_size=batch_size, shuffle=True)
     val_loader = DataLoader(valset, batch_size=batch_size, shuffle=False)
     test_loader = DataLoader(testset, batch_size=batch_size, shuffle=False)
@@ -78,8 +78,8 @@ def main():
     node_in_dim, node_out_dim, edge_dim = trainset.get_data_dimensions()
     assert node_in_dim == 16
     model = model(
-        nfeature_dim=nfeature_dim,
-        efeature_dim=efeature_dim,
+        nfeature_dim=node_in_dim,
+        #efeature_dim=efeature_dim,
         output_dim=output_dim,
         hidden_dim=hidden_dim,
         n_gnn_layers=n_gnn_layers,
@@ -132,6 +132,9 @@ def main():
                     'args': args,
                     'val_loss': best_val_loss,
                     'model_state_dict': model.state_dict(),
+                    'model': "No MP MPN",
+                    'train case': trainset.case,
+                    'test case': testset.case,
                 }
                 os.makedirs('models', exist_ok=True)
                 torch.save(_to_save, SAVE_MODEL_PATH)
@@ -161,7 +164,7 @@ def main():
                 'test_loss': f"{test_loss: .4f}",
                 'train_log': TRAIN_LOG_PATH,
                 'saved_file': SAVE_MODEL_PATH,
-                'model': "Basic MPN",
+                'model': "No MP MPN",
                 'train case': trainset.case,
                 'test case': testset.case,
             }
