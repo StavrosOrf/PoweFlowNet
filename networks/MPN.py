@@ -377,7 +377,7 @@ class WrappedMultiConv(nn.Module):
         self.out_channels = out_channels
         self.convs = nn.ModuleList()
         for i in range(num_convs):
-            self.convs.append(ChebConv(in_channels, out_channels, K, **kwargs))
+            self.convs.append(ChebConv(in_channels, out_channels, K, normalization=None, **kwargs))
         
     def forward(self, x, edge_index_list, edge_weights_list):
         out = 0.
@@ -396,6 +396,8 @@ class MultiConvNet(nn.Module):
     def __init__(self, nfeature_dim, efeature_dim, output_dim, hidden_dim, n_gnn_layers, K, dropout_rate):
         super().__init__()
         self.nfeature_dim = nfeature_dim
+        assert efeature_dim == 5
+        efeature_dim = efeature_dim - 3 # should be 2, only these two are meaningful
         self.efeature_dim = efeature_dim
         self.output_dim = output_dim
         self.hidden_dim = hidden_dim
@@ -452,7 +454,7 @@ class MultiConvNet(nn.Module):
         
         edge_index, edge_features = self.undirect_graph(edge_index, edge_features)
         
-        edge_features = self.edge_trans(edge_features)
+        edge_features = edge_features[:, :2] + self.edge_trans(edge_features[:, :2]) # only take the first two meaningful features
         for i in range(len(self.convs)-1):
             x = self.convs[i](x=x, 
                               edge_index_list=[edge_index]*self.efeature_dim,
