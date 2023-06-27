@@ -9,7 +9,7 @@ from torch_geometric.loader import DataLoader
 from tqdm import tqdm
 
 from datasets.PowerFlowData import PowerFlowData
-from networks.MPN import MPN, MPN_simplenet
+from networks.MPN import MPN, MPN_simplenet, SkipMPN, MaskEmbdMPN, MultiConvNet, MultiMPN
 from utils.argument_parser import argument_parser
 from utils.training import train_epoch, append_to_json
 from utils.evaluation import evaluate_epoch
@@ -30,6 +30,10 @@ def main():
     models = {
         'MPN': MPN,
         'MPN_simplenet': MPN_simplenet,
+        'SkipMPN': SkipMPN,
+        'MaskEmbdMPN': MaskEmbdMPN,
+        'MultiConvNet': MultiConvNet,
+        'MultiMPN': MultiMPN
     }
 
     # Training parameters
@@ -76,6 +80,10 @@ def main():
     if args.train_loss_fn == 'power_imbalance':
         # overwrite the loss function
         loss_fn = PowerImbalance(*trainset.get_data_means_stds()).to(device)
+    elif args.train_loss_fn == 'masked_l2':
+        loss_fn = Masked_L2_loss(regularize=args.regularize, regcoeff=args.regularization_coeff)
+    else:
+        loss_fn = torch.nn.MSELoss()
     
     # Step 2: Create model and optimizer (and scheduler)
     node_in_dim, node_out_dim, edge_dim = trainset.get_data_dimensions()
