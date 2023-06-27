@@ -149,10 +149,28 @@ def main():
                 }
                 os.makedirs('models', exist_ok=True)
                 torch.save(_to_save, SAVE_MODEL_PATH)
+                append_to_json(
+                    SAVE_LOG_PATH,
+                    run_id,
+                    {
+                        'val_loss': f"{best_val_loss: .4f}",
+                        # 'test_loss': f"{test_loss: .4f}",
+                        'train_log': TRAIN_LOG_PATH,
+                        'saved_file': SAVE_MODEL_PATH,
+                        'epoch': epoch,
+                        'model': args.model,
+                        'train_case': args.case,
+                        'train_loss_fn': args.train_loss_fn,
+                        'args': vars(args)
+                    }
+                )
+                torch.save(train_log, TRAIN_LOG_PATH)
 
         print(f"Epoch {epoch+1} / {num_epochs}: train_loss={train_loss:.4f}, val_loss={val_loss:.4f}, best_val_loss={best_val_loss:.4f}")
-    print(f"Best validation loss: {best_val_loss:.4f}")
 
+    
+    
+    print(f"Training Complete. Best validation loss: {best_val_loss:.4f}")
     
     # Step 4: Evaluate model
     if args.save:
@@ -166,20 +184,6 @@ def main():
     # Step 5: Save results
     os.makedirs(os.path.join(LOG_DIR, 'train_log'), exist_ok=True)
     if args.save:
-        append_to_json(
-            SAVE_LOG_PATH,
-            run_id,
-            {
-                'val_loss': f"{best_val_loss: .4f}",
-                'test_loss': f"{test_loss: .4f}",
-                'train_log': TRAIN_LOG_PATH,
-                'saved_file': SAVE_MODEL_PATH,
-                'model': args.model,
-                'train_case': args.case,
-                'train_loss_fn': args.train_loss_fn,
-                'args': args
-            }
-        )
         torch.save(train_log, TRAIN_LOG_PATH)
 
 
