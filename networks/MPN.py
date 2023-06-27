@@ -82,6 +82,29 @@ class MPN(nn.Module):
             
         self.convs.append(TAGConv(hidden_dim, output_dim, K=K))
 
+    def is_directed(self, edge_index):
+        'determine if a graph id directed by reading only one edge'
+        return edge_index[0,0] not in edge_index[1,edge_index[0,:] == edge_index[1,0]]
+    
+    def undirect_graph(self, edge_index, edge_attr):
+        if self.is_directed(edge_index):
+            edge_index_dup = torch.stack(
+                [edge_index[1,:], edge_index[0,:]],
+                dim = 0
+            )   # (2, E)
+            edge_index = torch.cat(
+                [edge_index, edge_index_dup],
+                dim = 1
+            )   # (2, 2*E)
+            edge_attr = torch.cat(
+                [edge_attr, edge_attr],
+                dim = 0
+            )   # (2*E, fe)
+            
+            return edge_index, edge_attr
+        else:
+            return edge_index, edge_attr
+    
     def forward(self, data):
         assert data.x.shape[-1] == self.nfeature_dim * 2 + 4 # features and their mask + one-hot node type embedding
         x = data.x[:, 4:4+self.nfeature_dim] # first four features: node type. not elegant at all this way. just saying. 
@@ -89,6 +112,8 @@ class MPN(nn.Module):
         mask = data.x[:, -self.nfeature_dim:]# last few dimensions: mask.
         edge_index = data.edge_index
         edge_features = data.edge_attr
+        
+        edge_index, edge_features = self.undirect_graph(edge_index, edge_features)
         
         x = self.edge_aggr(x, edge_index, edge_features)
         for i in range(len(self.convs)-1):
