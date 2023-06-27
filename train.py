@@ -9,7 +9,7 @@ from torch_geometric.loader import DataLoader
 from tqdm import tqdm
 
 from datasets.PowerFlowData import PowerFlowData
-from networks.MPN import MPN, MPN_simplenet
+from networks.MPN import MPN, MPN_simplenet, SkipMPN, MaskEmbdMPN, MultiConvNet
 from utils.argument_parser import argument_parser
 from utils.training import train_epoch, append_to_json
 from utils.evaluation import evaluate_epoch
@@ -30,6 +30,9 @@ def main():
     models = {
         'MPN': MPN,
         'MPN_simplenet': MPN_simplenet,
+        'SkipMPN': SkipMPN,
+        'MaskEmbdMPN': MaskEmbdMPN,
+        'MultiConvNet': MultiConvNet
     }
 
     # Training parameters
