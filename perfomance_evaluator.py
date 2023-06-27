@@ -7,6 +7,7 @@ from utils.argument_parser import argument_parser
 from pygsp import graphs
 import numpy as np
 from networks.MLP import MLP
+from networks.GCN import GCN
 from collaborative_filtering import tikhonov_regularizer, collaborative_filtering_testing
 
 """ 
@@ -15,6 +16,7 @@ Models:
     - MPN
     - Tikhonov Regularizer
     - MLP
+    - GCN
     - Newton-Raphson method
 """
 cases = ['case14', 'case118', 'case6470rte']
@@ -69,44 +71,6 @@ for case in cases:
     print(f'Loss of MPN model: {loss_MPN/sample_number}')
     print(f'Execution time of MPN model: {timer_MPN/sample_number}')
 
-    ###### Tikhonov Regularizer ##########################
-    # Load adjacency matrix from file
-    file_path = "./data/raw/case" + str(case_name) + '_adjacency_matrix.npy'
-    adjacency_matrix = np.load(file_path)
-    # print(adjacency_matrix.shape)
-
-    num_of_nodes = adjacency_matrix.shape[0]
-    # print(f'Number of nodes: {num_of_nodes}')
-
-    # create graph from adjacency matrix
-    G = graphs.Graph(adjacency_matrix)
-
-    # get incidence matrix
-    G.compute_differential_operator()
-    B = G.D.toarray()
-    # print(f'B: {B.shape}')
-    # get laplacian matrix
-    L = G.L.toarray()
-    # print(f'Laplacian: {L.shape}')
-
-    timer_regularizer = 0
-    loss_MPN = 0
-
-    for i, sample in enumerate(testset[:sample_number]):
-        time_start = time.time()
-        result = tikhonov_regularizer(
-            1.25, L, sample.x[:, 4:8], sample.x[:, 10:].to(device))
-        # result = collaborative_filtering_testing(sample.x[:,4:8], sample.x[:, 10:14], B,sample.y[:,:4],4)
-        time_end = time.time()
-        loss_MPN += eval_loss_fn(result,
-                                 sample.y[:, :4], sample.x[:, 10:14].to(device)).item()
-
-        timer_regularizer += time_end - time_start
-
-    print(f'Loss of Tikhonov Regularizer: {loss_MPN/sample_number}')
-    print(
-        f'Execution time of Tikhonov Regularizer: {timer_regularizer/sample_number}')
-
     ###### MLP ##########################
 
     # Load MLP model
@@ -136,5 +100,74 @@ for case in cases:
 
     print(f'Loss of MLP model: {loss_MLP/sample_number}')
     print(f'Execution time of MLP model: {timer_MLP/sample_number}')
+
+    ###### GCN ##########################
+
+    # Load GCN model
+    model_path = "./models/testing/gcn_" + case_name + ".pt"
+
+    GCN_model = GCN(input_dim=16,
+                output_dim=6,
+                hidden_dim=129).to(device)
+    
+    _to_load = torch.load(model_path)
+    GCN_model.load_state_dict(_to_load['model_state_dict'])
+    GCN_model.eval()
+
+    # Get loss of GCN model and execution time
+    timer_GCN = 0
+    loss_GCN = 0
+
+    for i, sample in enumerate(testset[:sample_number]):
+        time_start = time.time()
+        result = GCN_model(sample.to(device))
+        time_end = time.time()
+        loss_GCN += eval_loss_fn(result, sample.y.to(device),
+                                 sample.x[:, 10:].to(device)).item()
+
+        timer_GCN += time_end - time_start
+
+    print(f'Loss of GCN model: {loss_GCN/sample_number}')
+    print(f'Execution time of GCN model: {timer_GCN/sample_number}')
+
+    ###### Tikhonov Regularizer ##########################
+    # Load adjacency matrix from file
+    file_path = "./data/raw/case" + str(case_name) + '_adjacency_matrix.npy'
+    adjacency_matrix = np.load(file_path)
+    # print(adjacency_matrix.shape)
+
+    num_of_nodes = adjacency_matrix.shape[0]
+    # print(f'Number of nodes: {num_of_nodes}')
+
+    # create graph from adjacency matrix
+    G = graphs.Graph(adjacency_matrix)
+
+    # get incidence matrix
+    G.compute_differential_operator()
+    B = G.D.toarray()
+    # print(f'B: {B.shape}')
+    # get laplacian matrix
+    L = G.L.toarray()
+    # print(f'Laplacian: {L.shape}')
+
+    timer_regularizer = 0
+    loss_MPN = 0
+
+    for i, sample in enumerate(testset[:sample_number]):
+        time_start = time.time()
+        result = tikhonov_regularizer(
+            1.25, L, sample.x[:, 4:8], sample.x[:, 10:].to(device))
+        # result = collaborative_filtering_testing(sample.x[:,4:8], sample.x[:, 10:14], B,sample.y[:,:4],4)
+        time_end = time.time()
+        loss_MPN += eval_loss_fn(result.to(device),
+                                 sample.y[:, :4].to(device), sample.x[:, 10:14].to(device)).item()
+
+        timer_regularizer += time_end - time_start
+
+    print(f'Loss of Tikhonov Regularizer: {loss_MPN/sample_number}')
+    print(
+        f'Execution time of Tikhonov Regularizer: {timer_regularizer/sample_number}')
+
+
 
 

@@ -22,12 +22,12 @@ cases = ['case14', 'case118', 'case6470rte']
 # cases = ['case6470rte']
 
 args = argument_parser()
-num_epochs = args.num_epochs
+num_epochs = 1000
 data_dir = args.data_dir
 num_epochs = args.num_epochs
 loss_fn = Masked_L2_loss()
 lr = args.lr
-batch_size = args.batch_size
+batch_size = 1024
 print(f'Bath size: {batch_size}')
 
 
@@ -92,6 +92,3 @@ for case in cases:
         train_losses.append(train_loss)
         val_losses.append(val_loss)
 
-    # Step 4: Evaluate model
-    model.load_state_dict(torch.load(f'./models/testing/mlp_{case_name}.pt'))
-    test_loss = evaluate_epoch(model, test_loader, loss_fn, device)
