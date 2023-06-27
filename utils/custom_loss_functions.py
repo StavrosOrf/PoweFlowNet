@@ -75,6 +75,10 @@ class PowerImbalance(MessagePassing):
         self.edgestd = edgestd
         
     def de_normalize(self, x, edge_attr):
+        self.xymean = self.xymean.to(x.device)
+        self.xystd = self.xystd.to(x.device)
+        self.edgemean = self.edgemean.to(x.device)
+        self.edgestd = self.edgestd.to(x.device)
         return x * self.xystd + self.xymean, edge_attr * self.edgestd + self.edgemean
     
     def is_directed(self, edge_index):
