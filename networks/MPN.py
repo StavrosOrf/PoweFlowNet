@@ -368,6 +368,97 @@ class MultiMPN(nn.Module):
         return x
 
 
+class MaskEmbdMultiMPN(nn.Module):
+    """Wrapped Message Passing Network
+        - Mask Embedding
+        - Multi-step mixed MP+Conv
+        - No convolution layers
+    """
+    def __init__(self, nfeature_dim, efeature_dim, output_dim, hidden_dim, n_gnn_layers, K, dropout_rate):
+        super().__init__()
+        self.nfeature_dim = nfeature_dim
+        self.efeature_dim = efeature_dim
+        self.output_dim = output_dim
+        self.hidden_dim = hidden_dim
+        self.n_gnn_layers = n_gnn_layers
+        self.K = K
+        self.dropout_rate = dropout_rate
+        # self.edge_aggr = EdgeAggregation(nfeature_dim, efeature_dim, hidden_dim, hidden_dim)
+        # self.convs = nn.ModuleList()
+        self.layers = nn.ModuleList()
+
+        if n_gnn_layers == 1:
+            self.layers.append(EdgeAggregation(nfeature_dim, efeature_dim, hidden_dim, hidden_dim))
+            self.layers.append(TAGConv(hidden_dim, output_dim, K=K))
+        else:
+            self.layers.append(EdgeAggregation(nfeature_dim, efeature_dim, hidden_dim, hidden_dim))
+            self.layers.append(TAGConv(hidden_dim, hidden_dim, K=K))
+
+        for l in range(n_gnn_layers-2):
+            self.layers.append(EdgeAggregation(hidden_dim, efeature_dim, hidden_dim, hidden_dim))
+            self.layers.append(TAGConv(hidden_dim, hidden_dim, K=K))
+            
+        # self.layers.append(TAGConv(hidden_dim, output_dim, K=K))
+        self.layers.append(EdgeAggregation(hidden_dim, efeature_dim, hidden_dim, output_dim))
+        
+        self.mask_embd = nn.Sequential(
+            nn.Linear(nfeature_dim, hidden_dim),
+            nn.ReLU(),
+            nn.Linear(hidden_dim, nfeature_dim)
+        )
+
+    def is_directed(self, edge_index):
+        'determine if a graph id directed by reading only one edge'
+        return edge_index[0,0] not in edge_index[1,edge_index[0,:] == edge_index[1,0]]
+    
+    def undirect_graph(self, edge_index, edge_attr):
+        if self.is_directed(edge_index):
+            edge_index_dup = torch.stack(
+                [edge_index[1,:], edge_index[0,:]],
+                dim = 0
+            )   # (2, E)
+            edge_index = torch.cat(
+                [edge_index, edge_index_dup],
+                dim = 1
+            )   # (2, 2*E)
+            edge_attr = torch.cat(
+                [edge_attr, edge_attr],
+                dim = 0
+            )   # (2*E, fe)
+            
+            return edge_index, edge_attr
+        else:
+            return edge_index, edge_attr
+    
+    def forward(self, data):
+        assert data.x.shape[-1] == self.nfeature_dim * 2 + 4 # features and their mask + one-hot node type embedding
+        x = data.x[:, 4:4+self.nfeature_dim] # first four features: node type. not elegant at all this way. just saying. 
+        input_x = x # problem if there is inplace operation on x, so pay attention
+        mask = data.x[:, -self.nfeature_dim:]# last few dimensions: mask.
+        edge_index = data.edge_index
+        edge_features = data.edge_attr
+                
+        x = self.mask_embd(mask) + x
+        
+        edge_index, edge_features = self.undirect_graph(edge_index, edge_features)
+
+        for i in range(len(self.layers)-1):
+            if isinstance(self.layers[i], EdgeAggregation):
+                x = self.layers[i](x=x, edge_index=edge_index, edge_attr=edge_features)
+            else:
+                x = self.layers[i](x=x, edge_index=edge_index)
+            x = nn.Dropout(self.dropout_rate, inplace=False)(x)
+            x = nn.ReLU()(x)
+        
+        # x = self.convs[-1](x=x, edge_index=edge_index, edge_weight=edge_attr)
+        if isinstance(self.layers[-1], EdgeAggregation):
+            x = self.layers[-1](x=x, edge_index=edge_index, edge_attr=edge_features)
+        else:
+            x = self.layers[-1](x=x, edge_index=edge_index)
+        
+        return x
+    
+
 class WrappedMultiConv(nn.Module):
     def __init__(self, num_convs, in_channels, out_channels, K, **kwargs):
         super().__init__()

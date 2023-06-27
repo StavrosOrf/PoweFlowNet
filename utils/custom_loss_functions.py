@@ -237,6 +237,24 @@ class PowerImbalance(MessagePassing):
         return mean_dPQ
     
 
+class MixedMSEPoweImbalance(nn.Module):
+    """mixed mse and power imbalance loss
+    
+    loss = alpha * mse_loss + (1-alpha) * power_imbalance_loss
+    """
+    def __init__(self, xymean, xystd, edgemean, edgestd, alpha=0.5, reduction='mean'):
+        super.__init__()
+        assert alpha <= 1. and alpha >= 0
+        self.power_imbalance = PowerImbalance(xymean, xystd, edgemean, edgestd, reduction)
+        self.mse_loss_fn = nn.MSELoss(reduction=reduction)
+        self.alpha = alpha
+    
+    def forward(self, x, edge_index, edge_attr, y):
+        power_imb_loss = self.power_imbalance(x, edge_index, edge_attr)
+        mse_loss = self.mse_loss_fn(x, y)
+        loss = self.alpha * mse_loss + (1-self.alpha) * power_imb_loss
+    
+
 def main():
     # TODO import trainset, select an data.y, calculate the imbalance
     # trainset = PowerFlowData(root='~/data/volume_2/power_flow_dataset', case='14', split=[.5, .3, .2], task='train')

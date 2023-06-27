@@ -9,7 +9,7 @@ from torch_geometric.loader import DataLoader
 from tqdm import tqdm
 
 from datasets.PowerFlowData import PowerFlowData
-from networks.MPN import MPN, MPN_simplenet, SkipMPN, MaskEmbdMPN, MultiConvNet, MultiMPN
+from networks.MPN import MPN, MPN_simplenet, SkipMPN, MaskEmbdMPN, MultiConvNet, MultiMPN, MaskEmbdMultiMPN
 from utils.argument_parser import argument_parser
 from utils.training import train_epoch, append_to_json
 from utils.evaluation import evaluate_epoch
@@ -33,7 +33,8 @@ def main():
         'SkipMPN': SkipMPN,
         'MaskEmbdMPN': MaskEmbdMPN,
         'MultiConvNet': MultiConvNet,
-        'MultiMPN': MultiMPN
+        'MultiMPN': MultiMPN,
+        'MaskEmbdMultiMPN': MaskEmbdMultiMPN
     }
 
     # Training parameters
@@ -171,6 +172,8 @@ def main():
                 'test_loss': f"{test_loss: .4f}",
                 'train_log': TRAIN_LOG_PATH,
                 'saved_file': SAVE_MODEL_PATH,
+                'model': args.model,
+                'train_loss_fn': args.train_loss_fn
             }
         )
         torch.save(train_log, TRAIN_LOG_PATH)
