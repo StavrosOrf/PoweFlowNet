@@ -1,0 +1,62 @@
+MPN.py - basic MPN model
+
+train_MPN.py - train basic MPN model on case 14, test on case 118. training loss after 100 epochs : 0.3245,
+                best validation loss after 100 epoch: 0.2951, test loss : 0.2951
+train_MPN2.py - train basic MPN model on case 118, test on case 14. training loss after 100 epochs : ,
+                best validation loss after 100 epoch: , test loss :  
+train_MPN3.py - train basic MPN model on case 14, test on case 6470rte. training loss after 100 epochs : ,
+                best validation loss after 100 epoch: , test loss :
+train_MPN4.py - train basic MPN model on case 6470rte, test on case 14. training loss after 100 epochs : ,
+                best validation loss after 100 epoch: , test loss :
+train_MPN5.py - train basic MPN model on case 118, test on case 6470rte. training loss after 100 epochs : ,
+                best validation loss after 100 epoch: , test loss : 
+train_MPN6.py - train basic MPN model on case 6470rte, test on case 118. training loss after 100 epochs : ,
+                best validation loss after 100 epoch: , test loss :   
+
+
+MPNOne.py - MPN model with 1 layer
+
+train_MPNOne.py - train 1 layer MPN model on case 14, test on case 118. training loss after 100 epochs : 1.6259,
+                best validation loss after 100 epoch: 1.4411, test loss : 6.2655
+train_MPNOne2.py - train 1 layer MPN model on case 118, test on case 14. training loss after 100 epochs : ,
+                best validation loss after 100 epoch: , test loss : 
+train_MPNOne3.py - train 1 layer MPN model on case 14, test on case 6470rte. training loss after 100 epochs : ,
+                best validation loss after 100 epoch: , test loss :
+train_MPNOne4.py - train 1 layer MPN model on case 6470rte, test on case 14. training loss after 100 epochs : ,
+                best validation loss after 100 epoch: , test loss :
+train_MPNOne5.py - train 1 layer MPN model on case 118, test on case 6470rte. training loss after 100 epochs : ,
+                best validation loss after 100 epoch: , test loss :
+train_MPNOne6.py - train 1 layer MPN model on case 6470rte, test on case 118. training loss after 100 epochs : ,
+                best validation loss after 100 epoch: , test loss :
+
+
+MPNNoMP.py - MPN model with no message Passing
+
+train_MPNNoMP.py - train no MP MPN model on case 14, test on case 118. training loss after 100 epochs : ,
+                best validation loss after 100 epoch: , test loss : 
+train_MPNNoMP2.py - train no MP MPN model on case 118, test on case 14. training loss after 100 epochs : ,
+                best validation loss after 100 epoch: , test loss : 
+train_MPNNoMP3.py - train no MP MPN model on case 14, test on case 6470rte. training loss after 100 epochs : ,
+                best validation loss after 100 epoch: , test loss : 
+train_MPNNoMP4.py - train no MP MPN model on case 6470rte, test on case 14. training loss after 100 epochs : ,
+                best validation loss after 100 epoch: , test loss : 
+train_MPNNoMP5.py - train no MP MPN model on case 118, test on case 6470rte. training loss after 100 epochs : ,
+                best validation loss after 100 epoch: , test loss : 
+train_MPNNoMP6.py - train no MP MPN model on case 6470rte, test on case 118. training loss after 100 epochs : ,
+                best validation loss after 100 epoch: , test loss : 
+
+
+MPNRemoveBoth.py - MPN model with 1 layer and no message Passing
+
+train_MPNRemoveBoth.py - train 1 layer no mp MPN model on case 14, test on case 118. training loss after 100 epochs : ,
+                best validation loss after 100 epoch: , test loss : 
+train_MPNRemoveBoth2.py - train 1 layer no MP MPN model on case 118, test on case 14. training loss after 100 epochs : ,
+                best validation loss after 100 epoch: , test loss : 
+train_MPNRemoveBoth3.py - train 1 layer no MP MPN model on case 14, test on case 6470rte. training loss after 100 epochs : ,
+                best validation loss after 100 epoch: , test loss : 
+train_MPNRemoveBoth4.py - train 1 layer no MP MPN model on case 6470rte, test on case 14. training loss after 100 epochs : ,
+                best validation loss after 100 epoch: , test loss : 
+train_MPNRemoveBoth5.py - train 1 layer no MP MPN model on case 118, test on case 6470rte. training loss after 100 epochs : ,
+                best validation loss after 100 epoch: , test loss : 
+train_MPNRemoveBoth6.py - train 1 layer no MP MPN model on case 6470rte, test on case 118. training loss after 100 epochs : ,
+                best validation loss after 100 epoch: , test loss : 

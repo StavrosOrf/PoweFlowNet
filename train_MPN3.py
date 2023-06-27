@@ -34,7 +34,9 @@ def main():
 
     # Training parameters
     data_dir = args.data_dir
-    num_epochs = args.num_epochs
+    #data_dir1 = 'data1'
+    #print(data_dir)
+    num_epochs = 3 #args.num_epochs
     loss_fn = Masked_L2_loss(regularize=args.regularize, regcoeff=args.regularization_coeff)
     eval_loss_fn = Masked_L2_loss(regularize=False)
     lr = args.lr
@@ -67,7 +69,7 @@ def main():
     # Step 1: Load data
     trainset = PowerFlowData(root=data_dir, case=grid_case, split=[.5, .2, .3], task='train')
     valset = PowerFlowData(root=data_dir, case=grid_case, split=[.5, .2, .3], task='val')
-    testset = PowerFlowData(root=data_dir, case=grid_case, split=[.5, .2, .3], task='test')
+    testset = PowerFlowData(root=data_dir, case='6470rte', split=[.5, .2, .3], task='test')
     train_loader = DataLoader(trainset, batch_size=batch_size, shuffle=True)
     val_loader = DataLoader(valset, batch_size=batch_size, shuffle=False)
     test_loader = DataLoader(testset, batch_size=batch_size, shuffle=False)
@@ -143,7 +145,8 @@ def main():
         _to_load = torch.load(SAVE_MODEL_PATH)
         model.load_state_dict(_to_load['model_state_dict'])
         test_loss = evaluate_epoch(model, test_loader, eval_loss_fn, device)
-        print(f"Test loss: {best_val_loss:.4f}")
+        print("Testing on test data (case 6470rte)...")
+        print(f"Test loss: {test_loss:.4f}")
         if log_to_wandb:
             wandb.log({'test_loss', test_loss})
 
