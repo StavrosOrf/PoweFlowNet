@@ -95,11 +95,11 @@ def get_line_z_pu(net):
     
     return r_pu, x_pu
 
-number_of_samples = 200
+number_of_samples = 30000
 number_of_processes = 10
 
-test_case = 'case118v2'
-base_net_create = pp.networks.case118
+test_case = 'case6470rtev2'
+base_net_create = pp.networks.case6470rte
 # base_net_create = create_case3
 base_net = base_net_create()
 base_net.bus['name'] = base_net.bus.index
@@ -110,13 +110,15 @@ print(base_net.line)
 bus_names = base_net.bus['name'].values.tolist()
 n = base_net.bus.values.shape[0]
 A = np.zeros((n, n))
-for edge1,edge2 in base_net.line[['from_bus', 'to_bus']].values:
+# for edge1,edge2 in base_net.line[['from_bus', 'to_bus']].values:
     
-    edge_1 = bus_names.index(edge1)
-    edge_2 = bus_names.index(edge2)
+#     edge_1 = bus_names.index(edge1)
+#     edge_2 = bus_names.index(edge2)
 
-    A[edge_1, edge_2] = 1
-    A[edge_2, edge_1] = 1
+#     A[edge_1, edge_2] = 1
+#     A[edge_2, edge_1] = 1
+multi_graph = pp.topology.create_nxgraph(base_net)
+A = nx.adjacency_matrix(multi_graph).todense()
 
 def generate_data(sublist_size):
     edge_features_list = []
@@ -153,16 +155,16 @@ def generate_data(sublist_size):
         # tau = np.random.uniform(0.8*tau, 1.2*tau, case['branch'].shape[0])
         # angle = np.random.uniform(-0.2, 0.2, case['branch'].shape[0])
     
-        Vg = np.random.uniform(0.95, 1.05, net.gen['vm_pu'].shape[0])
-        Pg = np.random.normal(Pg, 0.2*np.abs(Pg), net.gen['p_mw'].shape[0])
+        Vg = np.random.uniform(1.00, 1.05, net.gen['vm_pu'].shape[0])
+        Pg = np.random.normal(Pg, 0.1*np.abs(Pg), net.gen['p_mw'].shape[0])
         
         # Pd = np.random.uniform(0.5*Pd, 1.5*Pd, net.load['p_mw'].shape[0])
-        Pd = np.random.normal(Pd, 0.2*np.abs(Pd), net.load['p_mw'].shape[0])
+        Pd = np.random.normal(Pd, 0.1*np.abs(Pd), net.load['p_mw'].shape[0])
         # Qd = np.random.uniform(0.5*Qd, 1.5*Qd, net.load['q_mvar'].shape[0])
-        Qd = np.random.normal(Qd, 0.2*np.abs(Qd), net.load['q_mvar'].shape[0])
+        Qd = np.random.normal(Qd, 0.1*np.abs(Qd), net.load['q_mvar'].shape[0])
         
-        net.line['r_ohm_per_km'] = r / 10
-        net.line['x_ohm_per_km'] = x / 10
+        net.line['r_ohm_per_km'] = r 
+        net.line['x_ohm_per_km'] = x 
 
         net.gen['vm_pu'] = Vg
         net.gen['p_mw'] = Pg
