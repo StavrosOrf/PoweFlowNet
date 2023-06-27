@@ -79,6 +79,10 @@ def main():
     if args.train_loss_fn == 'power_imbalance':
         # overwrite the loss function
         loss_fn = PowerImbalance(*trainset.get_data_means_stds()).to(device)
+    elif args.train_loss_fn == 'masked_l2':
+        loss_fn = Masked_L2_loss(regularize=args.regularize, regcoeff=args.regularization_coeff)
+    else:
+        loss_fn = torch.nn.MSELoss()
     
     # Step 2: Create model and optimizer (and scheduler)
     node_in_dim, node_out_dim, edge_dim = trainset.get_data_dimensions()
