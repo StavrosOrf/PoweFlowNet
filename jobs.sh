@@ -1,4 +1,4 @@
-python train.py
+python train_MPN.py
 python train_MPN2.py
 python train_MPN3.py
 python train_MPN4.py
