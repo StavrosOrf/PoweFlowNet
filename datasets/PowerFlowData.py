@@ -127,7 +127,7 @@ class PowerFlowData(InMemoryDataset):
 
     def get_data_means_stds(self):
         assert self.normalize == True
-        return self.xymean, self.xystd, self.edgemean, self.edgestd
+        return self.xymean[:1, :], self.xystd[:1, :], self.edgemean[:1, :], self.edgestd[:1, :]
 
     def _normalize_dataset(self, data, slices) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         if not self.normalize:
@@ -136,11 +136,14 @@ class PowerFlowData(InMemoryDataset):
 
         # selecting the right features
         # for x
+        print(data.x.shape)
+        print(data)
+        # exit()
         data.x[:, 4] = data.x[:, 4] - data.x[:, 8]  # Pd = Pd - Pg
         # + 4 for the one-hot encoding for four node types, -2 because we remove the index and Pg
         template = torch.zeros((data.x.shape[0], data.x.shape[1] + 3 - 2))
         template[:, 0:4] = torch.nn.functional.one_hot(
-            data.x[:, 1].type(torch.int64),num_classes=4)
+            data.x[:, 1].type(torch.int64), num_classes=4)
         template[:, 4:10] = data.x[:, 2:8]
         data.x = template
         # for y

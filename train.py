@@ -9,11 +9,11 @@ from torch_geometric.loader import DataLoader
 from tqdm import tqdm
 
 from datasets.PowerFlowData import PowerFlowData
-from networks.MPN import MPN, MPN_simplenet
+from networks.MPN import MPN, MPN_simplenet, SkipMPN, MaskEmbdMPN, MultiConvNet, MultiMPN, MaskEmbdMultiMPN
 from utils.argument_parser import argument_parser
 from utils.training import train_epoch, append_to_json
 from utils.evaluation import evaluate_epoch
-from utils.custom_loss_functions import Masked_L2_loss
+from utils.custom_loss_functions import Masked_L2_loss, PowerImbalance, MixedMSEPoweImbalance
 
 import wandb
 
@@ -30,7 +30,13 @@ def main():
     models = {
         'MPN': MPN,
         'MPN_simplenet': MPN_simplenet,
+        'SkipMPN': SkipMPN,
+        'MaskEmbdMPN': MaskEmbdMPN,
+        'MultiConvNet': MultiConvNet,
+        'MultiMPN': MultiMPN,
+        'MaskEmbdMultiMPN': MaskEmbdMultiMPN
     }
+    mixed_cases = ['118v2', '14v2']
 
     # Training parameters
     data_dir = args.data_dir
@@ -65,12 +71,33 @@ def main():
     # torch.backends.cudnn.benchmark = False
 
     # Step 1: Load data
-    trainset = PowerFlowData(root=data_dir, case=grid_case, split=[.5, .2, .3], task='train')
-    valset = PowerFlowData(root=data_dir, case=grid_case, split=[.5, .2, .3], task='val')
-    testset = PowerFlowData(root=data_dir, case=grid_case, split=[.5, .2, .3], task='test')
+    if grid_case != 'mixed':
+        trainset = PowerFlowData(root=data_dir, case=grid_case, split=[.5, .2, .3], task='train')
+        valset = PowerFlowData(root=data_dir, case=grid_case, split=[.5, .2, .3], task='val')
+        testset = PowerFlowData(root=data_dir, case=grid_case, split=[.5, .2, .3], task='test')
+    else:
+        trainsets = [PowerFlowData(root=data_dir, case=case, split=[.5, .2, .3], task='train') for case in mixed_cases]
+        valsets = [PowerFlowData(root=data_dir, case=case, split=[.5, .2, .3], task='val') for case in mixed_cases]
+        testsets = [PowerFlowData(root=data_dir, case=case, split=[.5, .2, .3], task='test') for case in mixed_cases]
+        trainset = torch.utils.data.ConcatDataset(trainsets)
+        valset = torch.utils.data.ConcatDataset(valsets)
+        testset = torch.utils.data.ConcatDataset(testsets)
+        trainset.get_data_dimensions = trainsets[0].get_data_dimensions
+        
     train_loader = DataLoader(trainset, batch_size=batch_size, shuffle=True)
     val_loader = DataLoader(valset, batch_size=batch_size, shuffle=False)
     test_loader = DataLoader(testset, batch_size=batch_size, shuffle=False)
+    
+    ## [Optional] physics-informed loss function
+    if args.train_loss_fn == 'power_imbalance':
+        # overwrite the loss function
+        loss_fn = PowerImbalance(*trainset.get_data_means_stds()).to(device)
+    elif args.train_loss_fn == 'masked_l2':
+        loss_fn = Masked_L2_loss(regularize=args.regularize, regcoeff=args.regularization_coeff)
+    elif args.train_loss_fn == 'mixed_mse_power_imbalance':
+        loss_fn = MixedMSEPoweImbalance(*trainset.get_data_means_stds(), alpha=0.9).to(device)
+    else:
+        loss_fn = torch.nn.MSELoss()
     
     # Step 2: Create model and optimizer (and scheduler)
     node_in_dim, node_out_dim, edge_dim = trainset.get_data_dimensions()
@@ -133,10 +160,28 @@ def main():
                 }
                 os.makedirs('models', exist_ok=True)
                 torch.save(_to_save, SAVE_MODEL_PATH)
+                append_to_json(
+                    SAVE_LOG_PATH,
+                    run_id,
+                    {
+                        'val_loss': f"{best_val_loss: .4f}",
+                        # 'test_loss': f"{test_loss: .4f}",
+                        'train_log': TRAIN_LOG_PATH,
+                        'saved_file': SAVE_MODEL_PATH,
+                        'epoch': epoch,
+                        'model': args.model,
+                        'train_case': args.case,
+                        'train_loss_fn': args.train_loss_fn,
+                        'args': vars(args)
+                    }
+                )
+                torch.save(train_log, TRAIN_LOG_PATH)
 
         print(f"Epoch {epoch+1} / {num_epochs}: train_loss={train_loss:.4f}, val_loss={val_loss:.4f}, best_val_loss={best_val_loss:.4f}")
-    print(f"Best validation loss: {best_val_loss:.4f}")
 
+    
+    
+    print(f"Training Complete. Best validation loss: {best_val_loss:.4f}")
     
     # Step 4: Evaluate model
     if args.save:
@@ -150,16 +195,6 @@ def main():
     # Step 5: Save results
     os.makedirs(os.path.join(LOG_DIR, 'train_log'), exist_ok=True)
     if args.save:
-        append_to_json(
-            SAVE_LOG_PATH,
-            run_id,
-            {
-                'val_loss': f"{best_val_loss: .4f}",
-                'test_loss': f"{test_loss: .4f}",
-                'train_log': TRAIN_LOG_PATH,
-                'saved_file': SAVE_MODEL_PATH,
-            }
-        )
         torch.save(train_log, TRAIN_LOG_PATH)
 
 

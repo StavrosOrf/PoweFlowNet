@@ -11,7 +11,7 @@ from torch.optim.optimizer import Optimizer
 import torch.nn as nn
 from tqdm import tqdm
 
-from utils.custom_loss_functions import Masked_L2_loss
+from utils.custom_loss_functions import Masked_L2_loss, PowerImbalance, MixedMSEPoweImbalance
 
 LOG_DIR = 'logs'
 SAVE_DIR = 'models'
@@ -78,6 +78,15 @@ def evaluate_epoch(
 
         if isinstance(loss_fn, Masked_L2_loss):
             loss = loss_fn(out, data.y, data.x[:, 10:])
+        elif isinstance(loss_fn, PowerImbalance):
+            # have to mask out the non-predicted values, otherwise
+            #   the network can learn to predict full-zeros
+            masked_out = out*data.x[:, 10:] \
+                        + data.x[:, 4:10]*(1-data.x[:, 10:])
+            loss = loss_fn(masked_out, data.edge_index, data.edge_attr)
+            # loss = loss_fn(data.y, data.edge_index, data.edge_attr)
+        elif isinstance(loss_fn, MixedMSEPoweImbalance):
+            loss = loss_fn(out, data.edge_index, data.edge_attr, data.y)
         else:
             loss = loss_fn(out, data.y)
 
