@@ -196,7 +196,7 @@ def main():
         _to_load = torch.load(SAVE_MODEL_PATH)
         model.load_state_dict(_to_load['model_state_dict'])
         test_loss = evaluate_epoch(model, test_loader, eval_loss_fn, device)
-        print(f"Test loss: {best_val_loss:.4f}")
+        print(f"Test loss: {test_loss:.4f}")
         if log_to_wandb:
             wandb.log({'test_loss', test_loss})
 
