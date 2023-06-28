@@ -19,7 +19,7 @@ SAVE_DIR = 'models'
 
 @torch.no_grad()
 def main():
-    run_id = '20230627-9311'
+    run_id = '20230628-6312'
     models = {
         'MPN': MPN,
         'MPN_simplenet': MPN_simplenet,
@@ -71,6 +71,7 @@ def main():
         K=conv_K,
         dropout_rate=dropout_rate,
     ).to(device)  # 40k params
+    model.eval()
 
     model, _ = load_model(model, run_id, device)
     
