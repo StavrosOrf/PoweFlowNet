@@ -36,7 +36,6 @@ def main():
         'MultiMPN': MultiMPN,
         'MaskEmbdMultiMPN': MaskEmbdMultiMPN
     }
-    all_cases = ['14v2', '118v2'] # leaving out 6470rte here, because it's too big
 
     # Training parameters
     data_dir = args.data_dir
@@ -71,26 +70,9 @@ def main():
     # torch.backends.cudnn.benchmark = False
 
     # Step 1: Load data
-    if grid_case != 'all':
-        trainset = PowerFlowData(root=data_dir, case=grid_case, split=[.5, .2, .3], task='train')
-        valset = PowerFlowData(root=data_dir, case=grid_case, split=[.5, .2, .3], task='val')
-        testset = PowerFlowData(root=data_dir, case=grid_case, split=[.5, .2, .3], task='test')
-    else:
-        trainsets = [
-            PowerFlowData(root=data_dir, case=_case, split=[.5, .2, .3], task='train') \
-                for _case in all_cases
-        ]
-        valsets = [
-            PowerFlowData(root=data_dir, case=_case, split=[.5, .2, .3], task='val') \
-                for _case in all_cases
-        ]
-        testsets = [
-            PowerFlowData(root=data_dir, case=_case, split=[.5, .2, .3], task='test') \
-                for _case in all_cases
-        ]
-        trainset = torch.utils.data.ConcatDataset(trainsets)
-        valset = torch.utils.data.ConcatDataset(valsets)
-        testset = torch.utils.data.ConcatDataset(testsets)
+    trainset = PowerFlowData(root=data_dir, case=grid_case, split=[.5, .2, .3], task='train')
+    valset = PowerFlowData(root=data_dir, case=grid_case, split=[.5, .2, .3], task='val')
+    testset = PowerFlowData(root=data_dir, case=grid_case, split=[.5, .2, .3], task='test')
         
     train_loader = DataLoader(trainset, batch_size=batch_size, shuffle=True)
     val_loader = DataLoader(valset, batch_size=batch_size, shuffle=False)
