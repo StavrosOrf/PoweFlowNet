@@ -9,11 +9,11 @@ from torch_geometric.loader import DataLoader
 from tqdm import tqdm
 
 from datasets.PowerFlowData import PowerFlowData
-from networks.MPN import MPN, MPN_simplenet
+from networks.MPNNo import MPN, MPN_simplenet, SkipMPN, MaskEmbdMPN, MultiConvNet, MultiMPN, MaskEmbdMultiMPN
 from utils.argument_parser import argument_parser
 from utils.training import train_epoch, append_to_json
 from utils.evaluation import evaluate_epoch
-from utils.custom_loss_functions import Masked_L2_loss
+from utils.custom_loss_functions import Masked_L2_loss, PowerImbalance, MixedMSEPoweImbalance
 
 import wandb
 
@@ -30,12 +30,16 @@ def main():
     models = {
         'MPN': MPN,
         'MPN_simplenet': MPN_simplenet,
+        'SkipMPN': SkipMPN,
+        'MaskEmbdMPN': MaskEmbdMPN,
+        'MultiConvNet': MultiConvNet,
+        'MultiMPN': MultiMPN,
+        'MaskEmbdMultiMPN': MaskEmbdMultiMPN
     }
+    all_cases = ['14v2', '118v2'] # leaving out 6470rte here, because it's too big
 
     # Training parameters
     data_dir = args.data_dir
-    #data_dir1 = 'data1'
-    #print(data_dir)
     num_epochs = args.num_epochs
     loss_fn = Masked_L2_loss(regularize=args.regularize, regcoeff=args.regularization_coeff)
     eval_loss_fn = Masked_L2_loss(regularize=False)
@@ -68,11 +72,6 @@ def main():
     # torch.backends.cudnn.benchmark = False
 
     # Step 1: Load data
-<<<<<<< Updated upstream:train_MPN2.py
-    trainset = PowerFlowData(root=data_dir, case=118, split=[.5, .2, .3], task='train')
-    valset = PowerFlowData(root=data_dir, case=118, split=[.5, .2, .3], task='val')
-    testset = PowerFlowData(root=data_dir, case=grid_case, split=[.5, .2, .3], task='test')
-=======
     if grid_case != 'all':
         trainset = PowerFlowData(root=data_dir, case=grid_case, split=[.5, .2, .3], task='train')
         valset = PowerFlowData(root=data_dir, case=grid_case, split=[.5, .2, .3], task='val')
@@ -94,17 +93,27 @@ def main():
         valset = torch.utils.data.ConcatDataset(valsets)
         testset = torch.utils.data.ConcatDataset(testsets)
         
->>>>>>> Stashed changes:train.py
     train_loader = DataLoader(trainset, batch_size=batch_size, shuffle=True)
     val_loader = DataLoader(valset, batch_size=batch_size, shuffle=False)
     test_loader = DataLoader(testset, batch_size=batch_size, shuffle=False)
+    
+    ## [Optional] physics-informed loss function
+    if args.train_loss_fn == 'power_imbalance':
+        # overwrite the loss function
+        loss_fn = PowerImbalance(*trainset.get_data_means_stds()).to(device)
+    elif args.train_loss_fn == 'masked_l2':
+        loss_fn = Masked_L2_loss(regularize=args.regularize, regcoeff=args.regularization_coeff)
+    elif args.train_loss_fn == 'mixed_mse_power_imbalance':
+        loss_fn = MixedMSEPoweImbalance(*trainset.get_data_means_stds(), alpha=0.9).to(device)
+    else:
+        loss_fn = torch.nn.MSELoss()
     
     # Step 2: Create model and optimizer (and scheduler)
     node_in_dim, node_out_dim, edge_dim = trainset.get_data_dimensions()
     assert node_in_dim == 16
     model = model(
         nfeature_dim=nfeature_dim,
-        efeature_dim=efeature_dim,
+        #efeature_dim=efeature_dim,
         output_dim=output_dim,
         hidden_dim=hidden_dim,
         n_gnn_layers=n_gnn_layers,
@@ -157,14 +166,9 @@ def main():
                     'args': args,
                     'val_loss': best_val_loss,
                     'model_state_dict': model.state_dict(),
-                    'model': "Basic MPN",
-                    'train case': trainset.case,
-                    'test case': testset.case,
                 }
                 os.makedirs('models', exist_ok=True)
                 torch.save(_to_save, SAVE_MODEL_PATH)
-<<<<<<< Updated upstream:train_MPN2.py
-=======
                 append_to_json(
                     SAVE_LOG_PATH,
                     run_id,
@@ -182,21 +186,18 @@ def main():
                     }
                 )
                 torch.save(train_log, TRAIN_LOG_PATH)
->>>>>>> Stashed changes:train.py
 
         print(f"Epoch {epoch+1} / {num_epochs}: train_loss={train_loss:.4f}, val_loss={val_loss:.4f}, best_val_loss={best_val_loss:.4f}")
-    print(f"Best validation loss: {best_val_loss:.4f}")
 
+    
+    
+    print(f"Training Complete. Best validation loss: {best_val_loss:.4f}")
     
     # Step 4: Evaluate model
     if args.save:
         _to_load = torch.load(SAVE_MODEL_PATH)
         model.load_state_dict(_to_load['model_state_dict'])
         test_loss = evaluate_epoch(model, test_loader, eval_loss_fn, device)
-<<<<<<< Updated upstream:train_MPN2.py
-        print("Testing on test data (case 14)...")
-=======
->>>>>>> Stashed changes:train.py
         print(f"Test loss: {test_loss:.4f}")
         if log_to_wandb:
             wandb.log({'test_loss', test_loss})
@@ -204,19 +205,6 @@ def main():
     # Step 5: Save results
     os.makedirs(os.path.join(LOG_DIR, 'train_log'), exist_ok=True)
     if args.save:
-        append_to_json(
-            SAVE_LOG_PATH,
-            run_id,
-            {
-                'val_loss': f"{best_val_loss: .4f}",
-                'test_loss': f"{test_loss: .4f}",
-                'train_log': TRAIN_LOG_PATH,
-                'saved_file': SAVE_MODEL_PATH,
-                'model': "Basic MPN",
-                'train case': trainset.case,
-                'test case': testset.case,
-            }
-        )
         torch.save(train_log, TRAIN_LOG_PATH)
 
 

@@ -132,6 +132,12 @@ def main():
                     'args': args,
                     'val_loss': best_val_loss,
                     'model_state_dict': model.state_dict(),
+<<<<<<< Updated upstream
+=======
+                    'model': "No MP MPN",
+                    'train case': trainset.case,
+                    'test case': testset.case,
+>>>>>>> Stashed changes
                 }
                 os.makedirs('models', exist_ok=True)
                 torch.save(_to_save, SAVE_MODEL_PATH)
@@ -161,6 +167,12 @@ def main():
                 'test_loss': f"{test_loss: .4f}",
                 'train_log': TRAIN_LOG_PATH,
                 'saved_file': SAVE_MODEL_PATH,
+<<<<<<< Updated upstream
+=======
+                'model': "No MP MPN",
+                'train case': trainset.case,
+                'test case': testset.case,
+>>>>>>> Stashed changes
             }
         )
         torch.save(train_log, TRAIN_LOG_PATH)
