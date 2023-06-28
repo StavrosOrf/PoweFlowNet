@@ -69,7 +69,6 @@ class MPN(nn.Module):
         self.K = K
         self.dropout_rate = dropout_rate
         self.edge_aggr = EdgeAggregation(nfeature_dim, efeature_dim, hidden_dim, hidden_dim)
-<<<<<<< Updated upstream
         self.conv = TAGConv(hidden_dim, output_dim, K=K)
 
     def forward(self, data):
@@ -81,7 +80,6 @@ class MPN(nn.Module):
         x = self.conv(x=x, edge_index=edge_index)
         x = nn.Dropout(self.dropout_rate, inplace=False)(x)
         x = nn.ReLU()(x)
-=======
         self.convs = nn.ModuleList()
         #self.conv = TAGConv(hidden_dim, output_dim, K=K)
         self.convs.append(TAGConv(hidden_dim, output_dim, K=K))
@@ -140,7 +138,6 @@ class MPN(nn.Module):
         
         # x = self.convs[-1](x=x, edge_index=edge_index, edge_weight=edge_attr)
         x = self.convs[0](x=x, edge_index=edge_index)
->>>>>>> Stashed changes
         
         return x
 
@@ -184,9 +181,6 @@ class MPN_simplenet(nn.Module):
             x = nn.ReLU()(x)
         
         x = self.convs[-1](x=x, edge_index=edge_index)
-        
-<<<<<<< Updated upstream
-=======
         return x
     
 class SkipMPN(nn.Module):
