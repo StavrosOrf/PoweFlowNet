@@ -71,18 +71,9 @@ def main():
     # torch.backends.cudnn.benchmark = False
 
     # Step 1: Load data
-    if grid_case != 'mixed':
-        trainset = PowerFlowData(root=data_dir, case=grid_case, split=[.5, .2, .3], task='train')
-        valset = PowerFlowData(root=data_dir, case=grid_case, split=[.5, .2, .3], task='val')
-        testset = PowerFlowData(root=data_dir, case=grid_case, split=[.5, .2, .3], task='test')
-    else:
-        trainsets = [PowerFlowData(root=data_dir, case=case, split=[.5, .2, .3], task='train') for case in mixed_cases]
-        valsets = [PowerFlowData(root=data_dir, case=case, split=[.5, .2, .3], task='val') for case in mixed_cases]
-        testsets = [PowerFlowData(root=data_dir, case=case, split=[.5, .2, .3], task='test') for case in mixed_cases]
-        trainset = torch.utils.data.ConcatDataset(trainsets)
-        valset = torch.utils.data.ConcatDataset(valsets)
-        testset = torch.utils.data.ConcatDataset(testsets)
-        trainset.get_data_dimensions = trainsets[0].get_data_dimensions
+    trainset = PowerFlowData(root=data_dir, case=grid_case, split=[.5, .2, .3], task='train')
+    valset = PowerFlowData(root=data_dir, case=grid_case, split=[.5, .2, .3], task='val')
+    testset = PowerFlowData(root=data_dir, case=grid_case, split=[.5, .2, .3], task='test')
         
     train_loader = DataLoader(trainset, batch_size=batch_size, shuffle=True)
     val_loader = DataLoader(valset, batch_size=batch_size, shuffle=False)
