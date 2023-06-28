@@ -9,7 +9,7 @@ from torch_geometric.loader import DataLoader
 from tqdm import tqdm
 
 from datasets.PowerFlowData import PowerFlowData
-from networks.MPN import MPN, MPN_simplenet, SkipMPN, MaskEmbdMPN, MultiConvNet, MultiMPN, MaskEmbdMultiMPN
+from networks.MPNNone import MPN, MPN_simplenet, SkipMPN, MaskEmbdMPN, MultiConvNet, MultiMPN, MaskEmbdMultiMPN
 from utils.argument_parser import argument_parser
 from utils.training import train_epoch, append_to_json
 from utils.evaluation import evaluate_epoch
@@ -36,7 +36,7 @@ def main():
         'MultiMPN': MultiMPN,
         'MaskEmbdMultiMPN': MaskEmbdMultiMPN
     }
-    mixed_cases = ['118v2', '14v2']
+    all_cases = ['14v2', '118v2'] # leaving out 6470rte here, because it's too big
 
     # Training parameters
     data_dir = args.data_dir
@@ -46,6 +46,7 @@ def main():
     lr = args.lr
     batch_size = args.batch_size
     grid_case = args.case
+    test_case = args.testcase
     
     # Network parameters
     nfeature_dim = args.nfeature_dim
@@ -71,18 +72,26 @@ def main():
     # torch.backends.cudnn.benchmark = False
 
     # Step 1: Load data
-    if grid_case != 'mixed':
+    if grid_case != 'all':
         trainset = PowerFlowData(root=data_dir, case=grid_case, split=[.5, .2, .3], task='train')
         valset = PowerFlowData(root=data_dir, case=grid_case, split=[.5, .2, .3], task='val')
-        testset = PowerFlowData(root=data_dir, case=grid_case, split=[.5, .2, .3], task='test')
+        testset = PowerFlowData(root=data_dir, case=test_case, split=[.5, .2, .3], task='test')
     else:
-        trainsets = [PowerFlowData(root=data_dir, case=case, split=[.5, .2, .3], task='train') for case in mixed_cases]
-        valsets = [PowerFlowData(root=data_dir, case=case, split=[.5, .2, .3], task='val') for case in mixed_cases]
-        testsets = [PowerFlowData(root=data_dir, case=case, split=[.5, .2, .3], task='test') for case in mixed_cases]
+        trainsets = [
+            PowerFlowData(root=data_dir, case=_case, split=[.5, .2, .3], task='train') \
+                for _case in all_cases
+        ]
+        valsets = [
+            PowerFlowData(root=data_dir, case=_case, split=[.5, .2, .3], task='val') \
+                for _case in all_cases
+        ]
+        testsets = [
+            PowerFlowData(root=data_dir, case=_case, split=[.5, .2, .3], task='test') \
+                for _case in all_cases
+        ]
         trainset = torch.utils.data.ConcatDataset(trainsets)
         valset = torch.utils.data.ConcatDataset(valsets)
         testset = torch.utils.data.ConcatDataset(testsets)
-        trainset.get_data_dimensions = trainsets[0].get_data_dimensions
         
     train_loader = DataLoader(trainset, batch_size=batch_size, shuffle=True)
     val_loader = DataLoader(valset, batch_size=batch_size, shuffle=False)
@@ -104,7 +113,7 @@ def main():
     assert node_in_dim == 16
     model = model(
         nfeature_dim=nfeature_dim,
-        efeature_dim=efeature_dim,
+        #efeature_dim=efeature_dim,
         output_dim=output_dim,
         hidden_dim=hidden_dim,
         n_gnn_layers=n_gnn_layers,
@@ -157,12 +166,6 @@ def main():
                     'args': args,
                     'val_loss': best_val_loss,
                     'model_state_dict': model.state_dict(),
-                    'model': "No MP MPN",
-                    'train case': trainset.case,
-                    'test case': testset.case,
-                    'model': "No MP MPN",
-                    'train case': trainset.case,
-                    'test case': testset.case,
                 }
                 os.makedirs('models', exist_ok=True)
                 torch.save(_to_save, SAVE_MODEL_PATH)
@@ -195,29 +198,13 @@ def main():
         _to_load = torch.load(SAVE_MODEL_PATH)
         model.load_state_dict(_to_load['model_state_dict'])
         test_loss = evaluate_epoch(model, test_loader, eval_loss_fn, device)
-        print(f"Test loss: {best_val_loss:.4f}")
+        print(f"Test loss: {test_loss:.4f}")
         if log_to_wandb:
             wandb.log({'test_loss', test_loss})
 
     # Step 5: Save results
     os.makedirs(os.path.join(LOG_DIR, 'train_log'), exist_ok=True)
     if args.save:
-        append_to_json(
-            SAVE_LOG_PATH,
-            run_id,
-            {
-                'val_loss': f"{best_val_loss: .4f}",
-                'test_loss': f"{test_loss: .4f}",
-                'train_log': TRAIN_LOG_PATH,
-                'saved_file': SAVE_MODEL_PATH,
-                'model': "No MP MPN",
-                'train case': trainset.case,
-                'test case': testset.case,
-                'model': "No MP MPN",
-                'train case': trainset.case,
-                'test case': testset.case,
-            }
-        )
         torch.save(train_log, TRAIN_LOG_PATH)
 
 
