@@ -6,6 +6,7 @@ import numpy as np
 import torch
 from torch_geometric.loader import DataLoader
 
+import json
 from tqdm import tqdm
 
 from datasets.PowerFlowData import PowerFlowData
@@ -84,8 +85,10 @@ def main():
     for i in range(len(trainsets)):
         if i > 1:
             batch_size = 32
-        else:
+        elif i == 1:
             batch_size = 1024
+        else:
+            batch_size = 2048
 
         train_loaders.append(DataLoader(
             trainsets[i], batch_size=batch_size, shuffle=True))
@@ -141,23 +144,27 @@ def main():
     ).to(device)
 
     models = [model_full, model_No, model_One, model_None]
-    model_names = ['model_full', 'model_1Conv', 'model_NoMP', 'model_1Conv_NoMP']
+
+    model_names = ['model_full', 'model_1Conv',
+                   'model_NoMP', 'model_1Conv_NoMP']
 
     results = {'model': [],
                'trained_on': [],
                'evaluated_on': [],
-               'test_loss': [],}
+               'test_loss': [], }
 
     for i, model_to_load in enumerate(models):
-        model = model_to_load
+        
 
         # train on case with model i
         for c, case in enumerate(cases):
+            model = model_to_load
 
             if c > 1:
                 num_epochs = 30
             else:
-                num_epochs = 50
+                num_epochs = 100
+            num_epochs = 1
 
             pytorch_total_params = sum(p.numel() for p in model.parameters())
             print("\n\n===========================================")
@@ -192,13 +199,14 @@ def main():
                                'val_loss': val_loss})
 
             # evaluate model i on all cases
-            for cc, case in enumerate(cases):
-                
-                test_loss = evaluate_epoch(
-                    model, test_loaders[cc], eval_loss_fn, device)            
-                print('--Evaluating ',model_names[i] ,'| "Trained on: ', cases[c], 'Evaluated on: ', cases[cc], '| Test loss: ', test_loss)                
+            for cc, case_n in enumerate(cases):
 
-                results['names'].append(model_names[i])
+                test_loss = evaluate_epoch(
+                    model, test_loaders[cc], eval_loss_fn, device)
+                print('--Results ', model_names[i], '| "Trained on: ', cases[c],
+                      'Evaluated on: ', cases[cc], '| Test loss: ', test_loss)
+
+                results['model'].append(model_names[i])
                 results['trained_on'].append(cases[c])
                 results['evaluated_on'].append(cases[cc])
                 results['test_loss'].append(test_loss)
@@ -206,13 +214,21 @@ def main():
                 if log_to_wandb:
                     wandb.log({'test_loss': test_loss})
             torch.cuda.empty_cache()
-            print("\n\n\n===========================================")    
-            #print the contents of the results dictionary
-            for key in results:
-                print(key, results[key])
-            print("+++++++++++++++++++++++++++++++++++++++++++")    
-            #save the results dictionary as json to root folder
-            append_to_json("generalization.json", results)
+            print("\n\n\n===========================================")
+            # print the contents of the results dictionary aligned using print formatting
+            print("Results dictionary:")
+            print("model           | trained_on  | evaluated_on | test_loss")
+            print("--------------------------------------------------------------------")
+            for j in range(len(results['model'])):
+                print('{: <15} | {: <11} | {: <12} | {: <8}'.format(
+                    results['model'][j], results['trained_on'][j], results['evaluated_on'][j], results['test_loss'][j]))
+
+            print("--------------------------------------------------------------------")
+            # save the results dictionary as json to root folder
+
+            with open("generalization.json", "w") as outfile:
+                json.dump(results, outfile)
+
 
 if __name__ == '__main__':
     main()
