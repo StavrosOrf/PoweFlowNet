@@ -83,7 +83,7 @@ def main():
     test_loaders = []
     for i in range(len(trainsets)):
         if i > 1:
-            batch_size = 64
+            batch_size = 32
         else:
             batch_size = 1024
 
@@ -143,7 +143,10 @@ def main():
     models = [model_full, model_No, model_One, model_None]
     model_names = ['model_full', 'model_1Conv', 'model_NoMP', 'model_1Conv_NoMP']
 
-    results = {}
+    results = {'model': [],
+               'trained_on': [],
+               'evaluated_on': [],
+               'test_loss': [],}
 
     for i, model_to_load in enumerate(models):
         model = model_to_load
@@ -151,7 +154,13 @@ def main():
         # train on case with model i
         for c, case in enumerate(cases):
 
+            if c > 1:
+                num_epochs = 30
+            else:
+                num_epochs = 50
+
             pytorch_total_params = sum(p.numel() for p in model.parameters())
+            print("\n\n===========================================")
             print(f'Case {case}, model {model_names[i]}:')
             print("Total number of parameters: ", pytorch_total_params)
 
@@ -184,14 +193,26 @@ def main():
 
             # evaluate model i on all cases
             for cc, case in enumerate(cases):
-                print('Evaluating ',model_names[i] ,'| "Trained on: ', cases[c], 'Evaluated on: ', cases[cc])
+                
                 test_loss = evaluate_epoch(
                     model, test_loaders[cc], eval_loss_fn, device)            
-                print(f'Test loss: {test_loss}')
+                print('--Evaluating ',model_names[i] ,'| "Trained on: ', cases[c], 'Evaluated on: ', cases[cc], '| Test loss: ', test_loss)                
+
+                results['names'].append(model_names[i])
+                results['trained_on'].append(cases[c])
+                results['evaluated_on'].append(cases[cc])
+                results['test_loss'].append(test_loss)
 
                 if log_to_wandb:
                     wandb.log({'test_loss': test_loss})
             torch.cuda.empty_cache()
+            print("\n\n\n===========================================")    
+            #print the contents of the results dictionary
+            for key in results:
+                print(key, results[key])
+            print("+++++++++++++++++++++++++++++++++++++++++++")    
+            #save the results dictionary as json to root folder
+            append_to_json("generalization.json", results)
 
 if __name__ == '__main__':
     main()
