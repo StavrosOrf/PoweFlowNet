@@ -108,10 +108,11 @@ class PowerFlowData(InMemoryDataset):
                 pre_transform: Optional[Callable] = None, 
                 pre_filter: Optional[Callable] = None,
                 normalize=True,
-                undirected=True):
+                undirected=False):
 
         assert len(split) == 3
         assert task in ["train", "val", "test"]
+        self.undirected = undirected
         self.normalize = normalize
         self.case = case  # THIS MUST BE EXECUTED BEFORE super().__init__() since it is used in raw_file_names and processed_file_names
         self.split = split
@@ -173,11 +174,6 @@ class PowerFlowData(InMemoryDataset):
         unequal = (data.x[:, 4:] != data.y).float()
         data.prediction_mask = unequal
         data.x = torch.concat([data.x, unequal], dim=1)
-
-        if self.undirected == True:
-            # let's make this graph undirected
-            data.edge_index = torch.cat((data.edge_index, data.edge_index[[1, 0]]), dim=1)
-            data.edge_attr = torch.cat((data.edge_attr, data.edge_attr), dim=0)
 
         return data, slices, unequal
 
