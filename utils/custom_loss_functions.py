@@ -4,6 +4,7 @@ from torchvision import datasets, transforms
 from torch import nn
 import torch.nn.functional as F
 from torch_geometric.nn import MessagePassing
+import networkx
 
 
 class Masked_L2_loss(nn.Module):
@@ -59,7 +60,10 @@ class PowerImbalance(MessagePassing):
         edge_index: edge index  -- (2, num_edges)
         edge_attr: edge features-- (num_edges, 2)
     """
-    def __init__(self, xymean, xystd, reduction='mean'):
+    base_sn = 100 # kva
+    base_voltage = 345 # kv
+    base_ohm = 1190.25 # v**2/sn
+    def __init__(self, xymean, xystd, edgemean, edgestd, reduction='mean'):
         super().__init__(aggr='add', flow='target_to_source')
         if xymean.shape[0] > 1:
             xymean = xymean[0:1]
@@ -67,9 +71,41 @@ class PowerImbalance(MessagePassing):
             xystd = xystd[0:1]
         self.xymean = xymean
         self.xystd = xystd
+        self.edgemean = edgemean
+        self.edgestd = edgestd
         
-    def de_normalize(self, x):
-        return x * self.xystd + self.xymean
+    def de_normalize(self, x, edge_attr):
+        self.xymean = self.xymean.to(x.device)
+        self.xystd = self.xystd.to(x.device)
+        self.edgemean = self.edgemean.to(x.device)
+        self.edgestd = self.edgestd.to(x.device)
+        return x * self.xystd + self.xymean, edge_attr * self.edgestd + self.edgemean
+    
+    def is_directed(self, edge_index):
+        'determine if a graph id directed by reading only one edge'
+        return edge_index[0,0] not in edge_index[1,edge_index[0,:] == edge_index[1,0]]
+    
+    def undirect_graph(self, edge_index, edge_attr):
+        """transform a directed graph (index, attr) into undirect by duplicating and reversing the directed edges
+
+        Arguments:
+            edge_index -- shape (2, E)
+            edge_attr -- shape (E, fe)
+        """
+        edge_index_dup = torch.stack(
+            [edge_index[1,:], edge_index[0,:]],
+            dim = 0
+        )   # (2, E)
+        edge_index = torch.cat(
+            [edge_index, edge_index_dup],
+            dim = 1
+        )   # (2, 2*E)
+        edge_attr = torch.cat(
+            [edge_attr, edge_attr],
+            dim = 0
+        )   # (2*E, fe)
+        
+        return edge_index, edge_attr
     
     def message(self, x_i, x_j, edge_attr):
         """calculate injected power Pji
@@ -93,14 +129,25 @@ class PowerImbalance(MessagePassing):
             Pji|Qji: (num_edges, 2)
         """
         r_x = edge_attr[:, 0:2] # (num_edges, 2)
-        zm_ij = torch.norm(r_x, p=2, dim=-1, keepdim=True) # (num_edges, 1) NOTE (r**2+x**2)**0.5 should be non-zero
-        za_ij = torch.acos(edge_attr[:, 0:1] / zm_ij) # (num_edges, 1)
-        ym_ij = 1/(zm_ij + 1e-6)        # (num_edges, 1)
-        ya_ij = -za_ij      # (num_edges, 1)    
+        r, x = r_x[:, 0:1], r_x[:, 1:2]
+        # zm_ij = torch.norm(r_x, p=2, dim=-1, keepdim=True) # (num_edges, 1) NOTE (r**2+x**2)**0.5 should be non-zero
+        # za_ij = torch.acos(edge_attr[:, 0:1] / zm_ij) # (num_edges, 1)
+        # ym_ij = 1/(zm_ij + 1e-6)        # (num_edges, 1)
+        # ya_ij = -za_ij      # (num_edges, 1)    
+        # g_ij = ym_ij * torch.cos(ya_ij) # (num_edges, 1)
+        # b_ij = ym_ij * torch.sin(ya_ij) # (num_edges, 1)
+        g_ij = r / (r**2 + x**2)
+        b_ij = -x / (r**2 + x**2)
+        ym_ij = torch.sqrt(g_ij**2+b_ij**2)
+        ya_ij = torch.acos(g_ij/ym_ij)
         vm_i = x_i[:, 0:1] # (num_edges, 1)
-        va_i = x_i[:, 1:2] # (num_edges, 1)
+        va_i = 1/180.*torch.pi*x_i[:, 1:2] # (num_edges, 1)
         vm_j = x_j[:, 0:1] # (num_edges, 1)
-        va_j = x_j[:, 1:2] # (num_edges, 1)
+        va_j = 1/180.*torch.pi*x_j[:, 1:2] # (num_edges, 1)
+        e_i = vm_i * torch.cos(va_i)
+        f_i = vm_i * torch.sin(va_i)
+        e_j = vm_j * torch.cos(va_j)
+        f_j = vm_j * torch.sin(va_j)
         
         ####### my (incomplete) method #######
         # Pji = vm_i * vm_j * ym_ij * torch.cos(va_i - va_j - ya_ij) \
@@ -110,6 +157,24 @@ class PowerImbalance(MessagePassing):
         
         ####### standard method #######
         # cannot be done since there's not complete information about whole neighborhood. 
+        
+        ####### another reference method #######
+        # Pji = vm_i * vm_j * (g_ij*torch.cos(va_i-va_j)+b_ij*torch.sin(va_i-va_j))
+        # Qji = vm_i * vm_j * (g_ij*torch.sin(va_i-va_j)-b_ij*torch.cos(va_i-va_j))
+        
+        ####### reference method 3 #######
+        # Pji = g_ij*(vm_i**2 - vm_i*vm_j*torch.cos(va_i-va_j)) \
+        #     - b_ij*(vm_i*vm_j*torch.sin(va_i-va_j))
+        # Qji = b_ij*(- vm_i**2 + vm_i*vm_j*torch.cos(va_i-va_j)) \
+        #     - g_ij*(vm_i*vm_j*torch.sin(va_i-va_j))
+            
+        ###### another mine ######
+        Pji = g_ij*(e_i*e_j-e_i**2+f_i*f_j-f_i**2) + b_ij*(f_i*e_j-e_i*f_j)
+        Qji = g_ij*(f_i*e_j-e_i*f_j) + b_ij*(-e_i*e_j+e_i**2-f_i*f_j+f_i**2)
+        
+        # --- DEBUG ---
+        # self._dPQ = torch.cat([Pji, Qji], dim=-1) # (num_edges, 2)
+        # --- DEBUG ---
         
         return torch.cat([Pji, Qji], dim=-1) # (num_edges, 2)
     
@@ -128,8 +193,13 @@ class PowerImbalance(MessagePassing):
             \Delta P_i = \sum_{j\in N_i} P_{ji} - P_{ij}
         $$
         """
-        dPi = aggregated[:, 0:1] - x[:, 2:3] # (num_nodes, 1)
-        dQi = aggregated[:, 1:2] - x[:, 3:4] # (num_nodes, 1)
+        # TODO check if the aggregated result is correct
+        
+        # --- DEBUG ---
+        # self.node_dPQ = self._is_i.float() @ self._dPQ # correct, gecontroleerd.
+        # --- DEBUG ---
+        dPi = - aggregated[:, 0:1] + x[:, 2:3] # (num_nodes, 1)
+        dQi = - aggregated[:, 1:2] + x[:, 3:4] # (num_nodes, 1)
 
         return torch.cat([dPi, dQi], dim=-1) # (num_nodes, 2)
         
@@ -149,12 +219,42 @@ class PowerImbalance(MessagePassing):
             \Delta P_i = \sum_{j\in N_i} P_{ji} - P_{ij}
         $$
         """
-        x = self.de_normalize(x)    # correct, gecontroleerd. 
+        if self.is_directed(edge_index):
+            edge_index, edge_attr = self.undirect_graph(edge_index, edge_attr)
+        x, edge_attr = self.de_normalize(x, edge_attr)    # correct, gecontroleerd. 
+        # --- per unit --- 
+        # edge_attr[:, 0:2] = edge_attr[:, 0:2]/self.base_ohm
+        # x[:, 2:4] = x[:, 2:4]/self.base_sn
+        # --- DEBUG ---
+        # self._edge_index = edge_index
+        # self._is_i = torch.arange(14).view((14,1)).expand((14, 20)).long() == edge_index[0:1,:]
+        # self._is_j = torch.arange(14).view((14,1)).expand((14, 20)).long() == edge_index[1:2,:]
+        # --- DEBUG ---        
         dPQ = self.propagate(edge_index, x=x, edge_attr=edge_attr) # (num_nodes, 2)
-        dPQ = dPQ.sum(dim=-1) # (num_nodes, 1)
+        dPQ = dPQ.square().sum(dim=-1) # (num_nodes, 1)
         mean_dPQ = dPQ.mean()
         
         return mean_dPQ
+    
+
+class MixedMSEPoweImbalance(nn.Module):
+    """mixed mse and power imbalance loss
+    
+    loss = alpha * mse_loss + (1-alpha) * power_imbalance_loss
+    """
+    def __init__(self, xymean, xystd, edgemean, edgestd, alpha=0.5, reduction='mean'):
+        super().__init__()
+        assert alpha <= 1. and alpha >= 0
+        self.power_imbalance = PowerImbalance(xymean, xystd, edgemean, edgestd, reduction)
+        self.mse_loss_fn = nn.MSELoss(reduction=reduction)
+        self.alpha = alpha
+    
+    def forward(self, x, edge_index, edge_attr, y):
+        power_imb_loss = self.power_imbalance(x, edge_index, edge_attr)
+        mse_loss = self.mse_loss_fn(x, y)
+        loss = self.alpha * mse_loss + (1-self.alpha) * 0.020*power_imb_loss
+        
+        return loss
     
 
 def main():

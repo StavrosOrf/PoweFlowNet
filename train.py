@@ -27,7 +27,7 @@ def main():
     SAVE_DIR = 'models'
     TRAIN_LOG_PATH = os.path.join(LOG_DIR, 'train_log/train_log_'+run_id+'.pt')
     SAVE_LOG_PATH = os.path.join(LOG_DIR, 'save_logs.json')
-    SAVE_MODEL_PATH = os.path.join(SAVE_DIR, 'model_'+run_id+'.pt')
+    
     models = {
         'MPN': MPN,
         'MPN_simplenet': MPN_simplenet,
@@ -59,6 +59,8 @@ def main():
                    entity="PowerFlowNet",
                    name=run_id,
                    config=args)
+    
+    SAVE_MODEL_PATH = os.path.join(SAVE_DIR, 'gcn_' + grid_case + '.pt')
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     torch.manual_seed(1234)
@@ -90,9 +92,9 @@ def main():
         dropout_rate=dropout_rate
     ).to(device)
 
-    # model = GCN(input_dim=node_in_dim,
-    #             output_dim=output_dim,
-    #             hidden_dim=hidden_dim)
+    model = GCN(input_dim=node_in_dim,
+                output_dim=output_dim,
+                hidden_dim=hidden_dim)
 
     # calculate model size
     pytorch_total_params = sum(p.numel() for p in model.parameters())

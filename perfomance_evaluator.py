@@ -1,6 +1,6 @@
 import torch
 from datasets.PowerFlowData import PowerFlowData
-from networks.MPN import MPN, MPN_simplenet
+from networks.MPN import MPN, MPN_simplenet, MaskEmbdMultiMPN
 from utils.custom_loss_functions import Masked_L2_loss
 import time
 from utils.argument_parser import argument_parser
@@ -19,7 +19,7 @@ Models:
     - GCN
     - Newton-Raphson method
 """
-cases = ['case14', 'case118v2', 'case6470rte']
+cases = ['case14', 'case118', 'case6470rte']
 # cases = ['case6470rte']
 
 for case in cases:
@@ -31,9 +31,7 @@ for case in cases:
     testset = PowerFlowData(root="./data/", case=case_name,
                             split=[.5, .2, .3], task='test')
     
-    if case_name == '118v2':
-        case_name = '118'
-    sample_number = 50
+    sample_number = 10000
     if sample_number > len(testset):
         sample_number = len(testset)
     print(f'Number of samples: {sample_number}')
@@ -45,7 +43,7 @@ for case in cases:
     # Load MPN model
     model_path = "./models/testing/mpn_" + case_name + ".pt"
 
-    MPN_model = MPN(
+    MPN_model = MaskEmbdMultiMPN(
         nfeature_dim=6,
         efeature_dim=5,
         output_dim=6,
