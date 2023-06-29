@@ -40,6 +40,7 @@ def main():
 
     # Training parameters
     data_dir = args.data_dir
+    nomalize_data = not args.disable_normalize
     num_epochs = args.num_epochs
     loss_fn = Masked_L2_loss(regularize=args.regularize, regcoeff=args.regularization_coeff)
     eval_loss_fn = Masked_L2_loss(regularize=False)
@@ -72,9 +73,9 @@ def main():
     # torch.backends.cudnn.benchmark = False
 
     # Step 1: Load data
-    trainset = PowerFlowData(root=data_dir, case=grid_case, split=[.5, .2, .3], task='train')
-    valset = PowerFlowData(root=data_dir, case=grid_case, split=[.5, .2, .3], task='val')
-    testset = PowerFlowData(root=data_dir, case=grid_case, split=[.5, .2, .3], task='test')
+    trainset = PowerFlowData(root=data_dir, case=grid_case, split=[.5, .2, .3], task='train', normalize=nomalize_data)
+    valset = PowerFlowData(root=data_dir, case=grid_case, split=[.5, .2, .3], task='val', normalize=nomalize_data)
+    testset = PowerFlowData(root=data_dir, case=grid_case, split=[.5, .2, .3], task='test', normalize=nomalize_data)
         
     train_loader = DataLoader(trainset, batch_size=batch_size, shuffle=True)
     val_loader = DataLoader(valset, batch_size=batch_size, shuffle=False)

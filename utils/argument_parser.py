@@ -32,6 +32,7 @@ def argument_parser():
     
     # Training parameters
     parser.add_argument('--data-dir', type=str, default='data', help='Path to data directory')
+    parser.add_argument('--disable_normalize', default=False, action=argparse.BooleanOptionalAction, help='Disable normalizing data')
     parser.add_argument('--train_loss_fn', 
                         type=str, default='masked_l2', 
                         choices=['masked_l2', 'power_imbalance', 'mse_loss', 'mixed_mse_power_imbalance'],
