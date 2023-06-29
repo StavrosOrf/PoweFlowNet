@@ -58,9 +58,10 @@ def main():
     model = models[args.model]
 
     log_to_wandb = args.wandb
+    wandb_entity = args.wandb_entity
     if log_to_wandb:
         wandb.init(project="PowerFlowNet",
-                   entity="PowerFlowNet",
+                   entity=wandb_entity,
                    name=run_id,
                    config=args)
 

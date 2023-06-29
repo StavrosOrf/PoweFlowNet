@@ -41,6 +41,7 @@ def argument_parser():
     parser.add_argument('--lr', type=float, default=1e-3, help='Learning rate')
     parser.add_argument('--case', type=str, default='14', help='Grid case')
     parser.add_argument('--wandb', default=False, help='Enable wandb logging',action=argparse.BooleanOptionalAction)
+    parser.add_argument('--wandb-entity', type=str, default='PowerFlowNet', help='wandb entity')
     parser.add_argument('--save', default=True, action=argparse.BooleanOptionalAction)
     
     # Step 0: Parse arguments in .json if specified 
