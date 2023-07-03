@@ -31,6 +31,7 @@ def argument_parser():
     parser.add_argument('--regularization_coeff', type=float, default=1.0, help='Dropout rate')
     
     # Training parameters
+    parser.add_argument('--round_experiments', type=str, default='0-validation', help='Round of experiments')
     parser.add_argument('--data-dir', type=str, default='data', help='Path to data directory')
     parser.add_argument('--disable_normalize', default=False, action=argparse.BooleanOptionalAction, help='Disable normalizing data')
     parser.add_argument('--train_loss_fn', 

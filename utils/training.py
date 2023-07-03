@@ -12,7 +12,7 @@ from tqdm import tqdm
 from utils.custom_loss_functions import Masked_L2_loss, PowerImbalance, MixedMSEPoweImbalance
 
 
-def append_to_json(log_path, run_id, result):
+def append_to_json(log_path, run_id, result, round_experiments='0-validation'):
     log_entry = {str(run_id): result}
 
     os.makedirs(os.path.dirname(log_path), exist_ok=True)
@@ -23,7 +23,9 @@ def append_to_json(log_path, run_id, result):
     except FileNotFoundError:
         exist_log = {}
     with open(log_path, "w") as json_file:
-        exist_log.update(log_entry)
+        if round_experiments not in exist_log.keys():
+            exist_log[round_experiments] = {}
+        exist_log[round_experiments].update(log_entry)
         json.dump(exist_log, json_file, indent=4)
 
 

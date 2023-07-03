@@ -63,7 +63,7 @@ class PowerImbalance(MessagePassing):
     base_sn = 100 # kva
     base_voltage = 345 # kv
     base_ohm = 1190.25 # v**2/sn
-    def __init__(self, xymean, xystd, edgemean, edgestd, reduction='mean'):
+    def __init__(self, xymean, xystd, edgemean, edgestd, reduction='mean', log=True):
         super().__init__(aggr='add', flow='target_to_source')
         if xymean.shape[0] > 1:
             xymean = xymean[0:1]
@@ -73,6 +73,7 @@ class PowerImbalance(MessagePassing):
         self.xystd = xystd
         self.edgemean = edgemean
         self.edgestd = edgestd
+        self.log = log
         
     def de_normalize(self, x, edge_attr):
         self.xymean = self.xymean.to(x.device)
@@ -232,6 +233,8 @@ class PowerImbalance(MessagePassing):
         # --- DEBUG ---        
         dPQ = self.propagate(edge_index, x=x, edge_attr=edge_attr) # (num_nodes, 2)
         dPQ = dPQ.square().sum(dim=-1) # (num_nodes, 1)
+        if self.log and not self.training:
+            dPQ = torch.log(1.+dPQ) # e-based, (num_nodes, 1)
         mean_dPQ = dPQ.mean()
         
         return mean_dPQ
@@ -252,7 +255,7 @@ class MixedMSEPoweImbalance(nn.Module):
     def forward(self, x, edge_index, edge_attr, y):
         power_imb_loss = self.power_imbalance(x, edge_index, edge_attr)
         mse_loss = self.mse_loss_fn(x, y)
-        loss = self.alpha * mse_loss + (1-self.alpha) * 0.020*power_imb_loss
+        loss = self.alpha * mse_loss + (1-self.alpha)*power_imb_loss
         
         return loss
     

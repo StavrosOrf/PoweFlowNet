@@ -21,6 +21,7 @@ import wandb
 def main():
     # Step 0: Parse Arguments and Setup
     args = argument_parser()
+    round_experiments = args.round_experiments
     run_id = datetime.now().strftime("%Y%m%d") + '-' + str(random.randint(0, 9999))
     LOG_DIR = 'logs'
     SAVE_DIR = 'models'
@@ -88,7 +89,7 @@ def main():
     elif args.train_loss_fn == 'masked_l2':
         loss_fn = Masked_L2_loss(regularize=args.regularize, regcoeff=args.regularization_coeff)
     elif args.train_loss_fn == 'mixed_mse_power_imbalance':
-        loss_fn = MixedMSEPoweImbalance(*trainset.get_data_means_stds(), alpha=0.9).to(device)
+        loss_fn = MixedMSEPoweImbalance(*trainset.get_data_means_stds(), alpha=0.5).to(device)
     else:
         loss_fn = torch.nn.MSELoss()
     
@@ -166,7 +167,8 @@ def main():
                         'train_case': args.case,
                         'train_loss_fn': args.train_loss_fn,
                         'args': vars(args)
-                    }
+                    },
+                    round_experiments=round_experiments
                 )
                 torch.save(train_log, TRAIN_LOG_PATH)
 
