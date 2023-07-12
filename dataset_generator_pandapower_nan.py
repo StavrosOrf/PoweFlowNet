@@ -96,10 +96,10 @@ def get_line_z_pu(net):
     return r_pu, x_pu
 
 number_of_samples = 30000
-number_of_processes = 10
+number_of_processes = 1
 
-test_case = 'case6470rtev2'
-base_net_create = pp.networks.case6470rte
+test_case = 'case14v3'
+base_net_create = pp.networks.case14
 # base_net_create = create_case3
 base_net = base_net_create()
 base_net.bus['name'] = base_net.bus.index
@@ -129,7 +129,7 @@ def generate_data(sublist_size):
     while True:
         # net = base_net
         net = base_net_create()
-        remove_c_nf(net)
+        # remove_c_nf(net)
         # unify_vn(net)
         trafo_r_pu, trafo_x_pu = get_trafo_z_pu(net)
         net.bus['name'] = base_net.bus.index
@@ -184,6 +184,12 @@ def generate_data(sublist_size):
 
         # Graph feature
         # baseMVA = x[0]['baseMVA']
+        
+        # === DEBUG ===
+        ybus_matrix = net._ppc["internal"]["Ybus"]
+        pandapower_bus_idx = 3
+        ppc_index = net._pd2ppc_lookups["bus"][pandapower_bus_idx]
+        # === DEBUG ===
 
         # Create a vector od branch features including start and end nodes,r,x,b,tau,angle
         edge_features = np.zeros((net.line.shape[0], 7))
