@@ -128,7 +128,7 @@ if GET_RESULTS:
 
 # Plot results
 # cases = ['case14']
-plt.rcParams['font.family'] = ['Family1', 'serif', 'Family2']
+plt.rcParams['font.family'] = ['serif']
 plt.subplots(3, 4,
              figsize=(10, 8))
 #     tight_layout=True,)
@@ -228,11 +228,15 @@ for counter_i, case in enumerate(cases):
         plot_counter += 1
         error_per_node_all = np.zeros((n_bins, n_nodes, 4))
         plt.subplot(3, 4, plot_counter)
-
-        if i == 2:
-            multiplier = 0.5
+        
+        if plot_counter == 9:
+            multiplier = 0.4
+        elif plot_counter == 6:
+            multiplier = 0.4
+        elif i == 2:
+            multiplier = 0.4
         elif i == 3:
-            multiplier = 0.6
+            multiplier = 0.4
         else:
             multiplier = 0.8
         min_value = np.min(errors[:, :, i]) * multiplier
