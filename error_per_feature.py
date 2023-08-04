@@ -30,9 +30,9 @@ feature_names_output = [
 ]
 
 GET_RESULTS = False
-sample_number = 50000
+sample_number = 5000
 cases = ['case14', 'case118', 'case6470rte']
-cases = ['case14', 'case118']
+cases = ['case118', 'case6470rte']
 
 if GET_RESULTS:
 
@@ -129,14 +129,32 @@ cases = ['case14']
 for case in cases:
     case_name = case.split("case")[1]
     # load results
-    number = 100000
+    number = 1000000
     errors = np.load('./results/'+case_name+'_errors.npy')[:number, :, :]
     masks = np.load('./results/'+case_name+'_masks.npy')[:number, :]
     types = np.load('./results/'+case_name+'_types.npy')[:number]
-    # print(types,masks)
+    # print(types)
+
+    #get number of 1 in masks
+    print(f'Number of Voltage Magnitude: {np.sum(masks[0,:,0]==1)}')
+    n_vm = np.sum(masks[0,:,0]==1)
+    print(f'Number of Voltage Angle: {np.sum(masks[0,:,1]==1)}')
+    n_va = np.sum(masks[0,:,1]==1)
+    print(f'Number of Active Power: {np.sum(masks[0,:,2]==1)}')
+    n_ap = np.sum(masks[0,:,2]==1)
+    print(f'Number of Reactive Power: {np.sum(masks[0,:,3]==1)}')
+    n_rp = np.sum(masks[0,:,3]==1)
+
+    #multiply errors by masks
+    #replace zeros in mask with 1
+    masks[masks==0] = 0.00001
+    errors = errors*masks
+
 
     print(f'Number of Loads: {np.sum(types[0,:]==2)}')
+    n_loads = np.sum(types[0,:]==2)
     print(f'Number of Generators: {np.sum(types[0,:]==1)}')
+    n_gens = np.sum(types[0,:]==1)
 
     # get indexes of loads and generators
     load_idx = np.where(types[0, :] == 2)[0]
@@ -184,76 +202,64 @@ for case in cases:
             # ax.yaxis.set_major_formatter(PercentFormatter(xmax=100))
 
         plt.savefig('./results/'+case_name+'error_distribution_'+'.png')
-        plt.show()
+        # plt.show()
 
     # plt.style.use('seaborn-darkgrid')
-    plt.subplots(2, 2, figsize=(10, 7), tight_layout=True)
+    plt.subplots(3,4, figsize=(10, 7), tight_layout=True,sharey=True)
     print(errors.shape)
     n_nodes = errors.shape[1]
-    n_bins = 100
-    n_values_to_print_y = 5
+    n_bins = 500
+    n_values_to_print_y = 7
     # Plot error per node average histogram
     # for n in range(errors.shape[0]):
 
-    error_per_node_all = np.zeros((n_bins, n_nodes, 4))
+    
     # error_per_node_loads = errors[n, load_idx, :].reshape(-1, 4)
     # error_per_node_gens = errors[n, gen_idx, :].reshape(-1, 4)
     for i in range(4):
-        plt.subplot(2, 2, i+1)
+        error_per_node_all = np.zeros((n_bins, n_nodes, 4))
+        plt.subplot(3, 4, i+1)
 
         min_value = np.min(errors[:, :, i])
         max_value = np.max(errors[:, :, i])
 
         if abs(min_value) >= max_value:
             max_value = abs(min_value)
+        elif abs(min_value) < max_value:
+            min_value = -max_value
 
         print(f'min_value: {min_value}, max_value: {max_value}')
 
         bin_list = np.linspace(min_value, max_value, n_bins+1)
         bin_list_print = np.linspace(min_value, max_value, n_values_to_print_y)
 
-        for n in range(n_nodes):
+        for n in range(n_nodes):        
             hist, bins = np.histogram(errors[:, n, i],
                                       bins=bin_list,
-                                      density=True)
-            # print(hist.shape)
-            # print(bins.shape)
-            error_per_node_all[:, n, i] = hist
+                                      density=False)
+            error_per_node_all[:, n, i] = hist/np.sum(hist)
 
-        print(error_per_node_all[:, :, i].shape)
-        print(error_per_node_all[:, :, i])
+        # indices = np.argsort(abs(error_per_node_all[:, :, i]).mean(axis=0))
+        # print(indices.shape)
+        # error_per_node_all = error_per_node_all[:, :, i]
 
         plt.imshow(error_per_node_all[:, :, i].T,
                    interpolation='nearest',
                    aspect='auto',
-                   norm=mcolors.PowerNorm(0.3),
-                   cmap='jet',)
+                   norm=mcolors.PowerNorm(0.2),
+                   cmap='viridis',)
         plt.colorbar(label='Probability')
+        plt.yticks(np.linspace(0, n_nodes, n_values_to_print_y)-0.5,
+                   np.linspace(0, n_nodes, n_values_to_print_y, dtype=int))
         plt.xticks(np.linspace(0, n_bins,n_values_to_print_y),
-                   np.round(bin_list_print, 4))
-        plt.xlabel('Nodes')
-        plt.ylabel('Error')
-
-    # for idx, ax in enumerate(axes.flatten()):
-    #     print(error_per_node_all[:,idx])
-    #     ax.hist2d(error_per_node_all[:, idx],
-
-    #                 bins=(100,n_nodes),
-    #                 norm=mcolors.PowerNorm(0.3),
-    #                 density=True,
-    #                 )
-    #     # ax.set_xlabel(f'{feature_names_output[idx]}')
-    #     ax.set_xlabel(f'{feature_names_output[idx]}')
-    #     ax.set_ylabel('Nodes')
-
-        # fig.colorbar(ax.hist2d(error_per_node_all[:, idx],
-        #                        np.arange(error_per_node_all.shape[0]),
-        #                        bins=100,
-        #                        norm=mcolors.PowerNorm(0.3))[3],
-        #              ax=ax,
-        #              label="Error Density")
-
-        # ax.legend()
+                   np.round(bin_list_print, 3),
+                   rotation=45)
+        plt.ylabel('Node Index')
+        plt.xlabel('Error')
+        plt.title(f'{feature_names_output[i]}')
 
     plt.savefig('./results/'+case_name+'error_distribution_per_node_'+'.png')
+
     # plt.show()
+
+
