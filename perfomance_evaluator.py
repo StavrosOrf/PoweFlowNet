@@ -28,10 +28,10 @@ for case in cases:
 
     print(f'\n\nCase {case_name} is being evaluated...')
     # Load testing data
-    testset = PowerFlowData(root="./data/", case=case_name,
+    testset = PowerFlowData(root="./data/", case=case_name+"v2",
                             split=[.5, .2, .3], task='test')
     
-    sample_number = 10000
+    sample_number = 10
     if sample_number > len(testset):
         sample_number = len(testset)
     print(f'Number of samples: {sample_number}')
@@ -53,7 +53,7 @@ for case in cases:
         dropout_rate=0.2
     ).to(device)
 
-    _to_load = torch.load(model_path)
+    _to_load = torch.load(model_path, map_location=device)
     MPN_model.load_state_dict(_to_load['model_state_dict'])
     MPN_model.eval()
 
@@ -83,7 +83,7 @@ for case in cases:
 
     model_MLP = MLP(num_inputs, num_outputs, 128, 3, 0.2).to(device)
 
-    _to_load = torch.load(model_path)
+    _to_load = torch.load(model_path, map_location=device)
     model_MLP.load_state_dict(_to_load['model_state_dict'])
     model_MLP.eval()
 
@@ -112,7 +112,7 @@ for case in cases:
                 output_dim=6,
                 hidden_dim=129).to(device)
     
-    _to_load = torch.load(model_path)
+    _to_load = torch.load(model_path, map_location=device)
     GCN_model.load_state_dict(_to_load['model_state_dict'])
     GCN_model.eval()
 
@@ -132,9 +132,10 @@ for case in cases:
     print(f'Loss of GCN model: {loss_GCN/sample_number}')
     print(f'Execution time of GCN model: {timer_GCN/sample_number}')
 
+    continue 
     ###### Tikhonov Regularizer ##########################
     # Load adjacency matrix from file
-    file_path = "./data/raw/case" + str(case_name) + '_adjacency_matrix.npy'
+    file_path = "./data/raw/case" + str(case_name)+"v2" + '_adjacency_matrix.npy'
     adjacency_matrix = np.load(file_path)
     # print(adjacency_matrix.shape)
 
