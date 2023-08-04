@@ -128,6 +128,7 @@ if GET_RESULTS:
 
 # Plot results
 # cases = ['case14']
+plt.rcParams['font.family'] = ['Family1', 'serif', 'Family2']
 plt.subplots(3, 4,
              figsize=(10, 8))
 #     tight_layout=True,)
@@ -300,7 +301,7 @@ plt.subplots_adjust(bottom=0.145, right=0.98, top=0.95,
                     left=0.09, wspace=0.16, hspace=0.326)
 # cax = plt.axes([0.85, 0.1, 0.015, 0.9])
 cax = plt.axes([0.09, 0.06, 0.88, 0.01])
-plt.colorbar(location='bottom', cax=cax, label='Error Probability Density')
+plt.colorbar(location='bottom', cax=cax, label='Probability of the Error')
 
 plt.savefig('./results/error_distribution_per_node.pdf',
             format='pdf', dpi=600)
