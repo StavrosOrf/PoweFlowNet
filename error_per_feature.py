@@ -129,7 +129,7 @@ if GET_RESULTS:
 # cases = ['case14']
 plt.rcParams['font.family'] = ['serif']
 plt.subplots(3, 4,
-             figsize=(10, 8))
+             figsize=(10, 7))
 #     tight_layout=True,)
 # sharey=True,
 # sharex=True)
@@ -342,7 +342,7 @@ for counter_i, case in enumerate(cases):
 
 
 plt.subplots_adjust(bottom=0.145, right=0.98, top=0.95,
-                    left=0.09, wspace=0.16, hspace=0.326)
+                    left=0.09, wspace=0.16, hspace=0.395) #hspace=0.326 wspawce=0.13
 # cax = plt.axes([0.85, 0.1, 0.015, 0.9])
 cax = plt.axes([0.09, 0.06, 0.88, 0.01])
 plt.colorbar(location='bottom', cax=cax, label='Probability of the Error')
