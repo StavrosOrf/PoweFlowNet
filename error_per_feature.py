@@ -22,9 +22,9 @@ os.makedirs('./results', exist_ok=True)
 
 feature_names_output = [
     'Voltage Magnitude (p.u.)',    # --- we care about this
-    'Voltage Angle$^\circ$',        # --- we care about this
-    'Active Power (kW)',         # --- we care about this
-    'Reactive Power (kVar)',       # --- we care about this
+    'Voltage Angle (deg)',        # --- we care about this
+    'Active Power (MW)',         # --- we care about this
+    'Reactive Power (MVar)',       # --- we care about this
     'Gs',                   # -
     'Bs'                    # -
 ]
@@ -33,7 +33,6 @@ GET_RESULTS = False
 sample_number = 200000
 cases = ['case14', 'case118', 'case6470rte']
 # cases = ['case6470rte']
-
 
 if GET_RESULTS:
 
@@ -164,7 +163,48 @@ for counter_i, case in enumerate(cases):
     n_loads = np.sum(types[0, :] == 2)
     print(f'Number of Generators: {np.sum(types[0,:]==1)}')
     n_gens = np.sum(types[0, :] == 1)
+    print("="*80)   
 
+    #print the average and standard deviation of errors for each feature only when mask is 1
+    indexes = np.where(masks[0, :, 0] == 1)[0]    
+    vm_errors = errors[:,indexes, 0]
+    #get average and std of vm_errors
+    vm_errors = vm_errors.reshape(-1,1)
+    #print the absolute average and standard deviation of errors for each feature only when mask is 1
+    print(f'Absolute Average of Voltage Magnitude: {np.mean(np.abs(vm_errors))}')
+    print(f'Absolute Standard Deviation of Voltage Magnitude: {np.std(np.abs(vm_errors))}')
+    print("- "*40)
+
+    indexes = np.where(masks[0, :, 1] == 1)[0]    
+    va_errors = errors[:,indexes, 1]
+    #get average and std of va_errors
+    va_errors = va_errors.reshape(-1,1)
+    #Print the absolute average and standard deviation of errors for each feature only when mask is 1
+    print(f'Absolute Average of Voltage Angle: {np.mean(np.abs(va_errors))}')
+    print(f'Absolute Standard Deviation of Voltage Angle: {np.std(np.abs(va_errors))}')
+    print("- "*40)
+
+    indexes = np.where(masks[0, :, 2] == 1)[0]
+    ap_errors = errors[:,indexes, 2]
+    #get average and std of ap_errors
+    ap_errors = ap_errors.reshape(-1,1)
+    #print the absolute average and standard deviation of errors for each feature only when mask is 1
+    print(f'Absolute Average of Active Power: {np.mean(np.abs(ap_errors))}')
+    print(f'Absolute Standard Deviation of Active Power: {np.std(np.abs(ap_errors))}')
+    print("- "*40)
+
+    indexes = np.where(masks[0, :, 3] == 1)[0]
+    rp_errors = errors[:,indexes, 3]
+    #get average and std of rp_errors
+    rp_errors = rp_errors.reshape(-1,1)
+    #print the absolute average and standard deviation of errors for each feature only when mask is 1
+    print(f'Absolute Average of Reactive Power: {np.mean(np.abs(rp_errors))}')
+    print(f'Absolute Standard Deviation of Reactive Power: {np.std(np.abs(rp_errors))}')
+    print("- "*40)
+
+    print(f'Average of all errors: {np.mean(errors)}')
+    print(f'Standard Deviation of all errors: {np.std(errors)}')
+    print("="*80)   
     # get indexes of loads and generators
     load_idx = np.where(types[0, :] == 2)[0]
     gen_idx = np.where(types[0, :] == 1)[0]
