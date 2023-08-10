@@ -40,6 +40,7 @@ def main():
 
     # Training parameters
     data_dir = args.data_dir
+    nomalize_data = not args.disable_normalize
     num_epochs = args.num_epochs
     loss_fn = Masked_L2_loss(regularize=args.regularize, regcoeff=args.regularization_coeff)
     eval_loss_fn = Masked_L2_loss(regularize=False)
@@ -58,9 +59,10 @@ def main():
     model = models[args.model]
 
     log_to_wandb = args.wandb
+    wandb_entity = args.wandb_entity
     if log_to_wandb:
         wandb.init(project="PowerFlowNet",
-                   entity="PowerFlowNet",
+                   entity=wandb_entity,
                    name=run_id,
                    config=args)
 
@@ -71,18 +73,9 @@ def main():
     # torch.backends.cudnn.benchmark = False
 
     # Step 1: Load data
-    if grid_case != 'mixed':
-        trainset = PowerFlowData(root=data_dir, case=grid_case, split=[.5, .2, .3], task='train')
-        valset = PowerFlowData(root=data_dir, case=grid_case, split=[.5, .2, .3], task='val')
-        testset = PowerFlowData(root=data_dir, case=grid_case, split=[.5, .2, .3], task='test')
-    else:
-        trainsets = [PowerFlowData(root=data_dir, case=case, split=[.5, .2, .3], task='train') for case in mixed_cases]
-        valsets = [PowerFlowData(root=data_dir, case=case, split=[.5, .2, .3], task='val') for case in mixed_cases]
-        testsets = [PowerFlowData(root=data_dir, case=case, split=[.5, .2, .3], task='test') for case in mixed_cases]
-        trainset = torch.utils.data.ConcatDataset(trainsets)
-        valset = torch.utils.data.ConcatDataset(valsets)
-        testset = torch.utils.data.ConcatDataset(testsets)
-        trainset.get_data_dimensions = trainsets[0].get_data_dimensions
+    trainset = PowerFlowData(root=data_dir, case=grid_case, split=[.5, .2, .3], task='train', normalize=nomalize_data)
+    valset = PowerFlowData(root=data_dir, case=grid_case, split=[.5, .2, .3], task='val', normalize=nomalize_data)
+    testset = PowerFlowData(root=data_dir, case=grid_case, split=[.5, .2, .3], task='test', normalize=nomalize_data)
         
     train_loader = DataLoader(trainset, batch_size=batch_size, shuffle=True)
     val_loader = DataLoader(valset, batch_size=batch_size, shuffle=False)
@@ -157,12 +150,6 @@ def main():
                     'args': args,
                     'val_loss': best_val_loss,
                     'model_state_dict': model.state_dict(),
-                    'model': "No MP MPN",
-                    'train case': trainset.case,
-                    'test case': testset.case,
-                    'model': "No MP MPN",
-                    'train case': trainset.case,
-                    'test case': testset.case,
                 }
                 os.makedirs('models', exist_ok=True)
                 torch.save(_to_save, SAVE_MODEL_PATH)
@@ -177,7 +164,6 @@ def main():
                         'epoch': epoch,
                         'model': args.model,
                         'train_case': args.case,
-                        'test_case': args.testcase,
                         'train_loss_fn': args.train_loss_fn,
                         'args': vars(args)
                     }
@@ -202,22 +188,6 @@ def main():
     # Step 5: Save results
     os.makedirs(os.path.join(LOG_DIR, 'train_log'), exist_ok=True)
     if args.save:
-        append_to_json(
-            SAVE_LOG_PATH,
-            run_id,
-            {
-                'val_loss': f"{best_val_loss: .4f}",
-                'test_loss': f"{test_loss: .4f}",
-                'train_log': TRAIN_LOG_PATH,
-                'saved_file': SAVE_MODEL_PATH,
-                'model': "No MP MPN",
-                'train case': trainset.case,
-                'test case': testset.case,
-                'model': "No MP MPN",
-                'train case': trainset.case,
-                'test case': testset.case,
-            }
-        )
         torch.save(train_log, TRAIN_LOG_PATH)
 
 

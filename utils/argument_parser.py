@@ -32,6 +32,7 @@ def argument_parser():
     
     # Training parameters
     parser.add_argument('--data-dir', type=str, default='data', help='Path to data directory')
+    parser.add_argument('--disable_normalize', default=False, action=argparse.BooleanOptionalAction, help='Disable normalizing data')
     parser.add_argument('--train_loss_fn', 
                         type=str, default='masked_l2', 
                         choices=['masked_l2', 'power_imbalance', 'mse_loss', 'mixed_mse_power_imbalance'],
@@ -39,9 +40,9 @@ def argument_parser():
     parser.add_argument('--num-epochs', type=int, default=100, help='Number of epochs to train for')
     parser.add_argument('--batch-size', type=int, default=128, help='Batch size')
     parser.add_argument('--lr', type=float, default=1e-3, help='Learning rate')
-    parser.add_argument('--case', type=str, default='14v2', help='Grid case')
-    parser.add_argument('--testcase', type=str, default='14v2', help='Grid case')
+    parser.add_argument('--case', type=str, default='14', help='Grid case')
     parser.add_argument('--wandb', default=False, help='Enable wandb logging',action=argparse.BooleanOptionalAction)
+    parser.add_argument('--wandb-entity', type=str, default='PowerFlowNet', help='wandb entity')
     parser.add_argument('--save', default=True, action=argparse.BooleanOptionalAction)
     
     # Step 0: Parse arguments in .json if specified 
