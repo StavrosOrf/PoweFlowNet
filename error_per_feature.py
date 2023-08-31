@@ -273,6 +273,8 @@ for counter_i, case in enumerate(cases):
             multiplier = 0.4
         elif plot_counter == 6:
             multiplier = 0.4
+        elif plot_counter == 10:
+            multiplier = 0.5
         elif i == 2:
             multiplier = 0.4
         elif i == 3:
@@ -345,7 +347,7 @@ plt.subplots_adjust(bottom=0.145, right=0.98, top=0.95,
                     left=0.09, wspace=0.16, hspace=0.395) #hspace=0.326 wspawce=0.13
 # cax = plt.axes([0.85, 0.1, 0.015, 0.9])
 cax = plt.axes([0.09, 0.06, 0.88, 0.01])
-plt.colorbar(location='bottom', cax=cax, label='Probability of the Error')
+plt.colorbar(location='bottom', cax=cax, label='Probability Density of the Error')
 
 plt.savefig('./results/error_distribution_per_node.pdf',
             format='pdf', dpi=600)
