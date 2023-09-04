@@ -32,9 +32,6 @@ import os
 # “fdxb” fast-decoupled (pypower implementation)
 
 
-# print(net)
-# print(net.keys())
-
 def create_case3():
     net = pp.create_empty_network()
     net.sn_mva = 100
@@ -60,17 +57,6 @@ def unify_vn(net):
         net.bus['vn_kv'][node_id] = max(net.bus['vn_kv'])
 
 def get_trafo_z_pu(net):
-    # if random:
-    #     replace_line_r_ohm = max(0., 0.1*np.random.normal(replace_line_r_ohm, np.abs(replace_line_r_ohm)*0.05))
-    #     replace_line_x_ohm = max(0., 0.1*np.random.normal(replace_line_x_ohm, np.abs(replace_line_x_ohm)*0.05))
-    # for trafo_id in net.trafo.index:
-    #     from_bus, to_bus = net.trafo.iloc[trafo_id]['hv_bus'], net.trafo.iloc[trafo_id]['lv_bus']
-    #     pp.create_line_from_parameters(net, from_bus=from_bus, to_bus=to_bus, length_km=1., 
-    #                                    r_ohm_per_km=replace_line_r_ohm, x_ohm_per_km=replace_line_r_ohm,
-    #                                    c_nf_per_km=0., max_i_ka=3.e4,
-    #                                    max_loading_percent=100.,
-    #                                    type='ol')
-    # pp.drop_trafos(net, net.trafo.index, table='trafo')
     for trafo_id in net.trafo.index:
         net.trafo['i0_percent'][trafo_id] = 0.
         net.trafo['pfe_kw'][trafo_id] = 0.
@@ -80,7 +66,6 @@ def get_trafo_z_pu(net):
     x_pu = np.sqrt(z_pu**2 - r_pu**2)
     
     return x_pu, r_pu
-    # raise NotImplementedError
     
 def get_line_z_pu(net):
     r = net.line['r_ohm_per_km'].values * net.line['length_km'] 
@@ -98,8 +83,8 @@ def get_line_z_pu(net):
 number_of_samples = 30000
 number_of_processes = 10
 
-test_case = 'case6470rtev2'
-base_net_create = pp.networks.case6470rte
+test_case = 'case118perturbed'
+base_net_create = pp.networks.case118
 # base_net_create = create_case3
 base_net = base_net_create()
 base_net.bus['name'] = base_net.bus.index
@@ -109,14 +94,6 @@ print(base_net.line)
 # Get Adjacency Matrix
 bus_names = base_net.bus['name'].values.tolist()
 n = base_net.bus.values.shape[0]
-A = np.zeros((n, n))
-# for edge1,edge2 in base_net.line[['from_bus', 'to_bus']].values:
-    
-#     edge_1 = bus_names.index(edge1)
-#     edge_2 = bus_names.index(edge2)
-
-#     A[edge_1, edge_2] = 1
-#     A[edge_2, edge_1] = 1
 multi_graph = pp.topology.create_nxgraph(base_net)
 A = nx.adjacency_matrix(multi_graph).todense()
 
