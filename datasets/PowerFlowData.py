@@ -200,14 +200,14 @@ class PowerFlowData(InMemoryDataset):
 
     def process(self):
         # then use from_scipy_sparse_matrix()
-        assert len(self.raw_paths) % 4 == 0
-        raw_paths_per_case = [[self.raw_paths[i], self.raw_paths[i+1], self.raw_paths[i+2], self.raw_paths[i+3],] for i in range(0, len(self.raw_paths), 4)]
+        assert len(self.raw_paths) % 3 == 0
+        raw_paths_per_case = [[self.raw_paths[i], self.raw_paths[i+1], self.raw_paths[i+2],] for i in range(0, len(self.raw_paths), 3)]
         data_list = []
         for case, raw_paths in enumerate(raw_paths_per_case):
-            adj_mat = dense_to_sparse(torch.from_numpy(np.load(raw_paths[0])))
-            edge_features = torch.from_numpy(np.load(raw_paths[1])).float()
-            node_features_x = torch.from_numpy(np.load(raw_paths[2])).float()
-            node_features_y = torch.from_numpy(np.load(raw_paths[3])).float()
+            # adj_mat = dense_to_sparse(torch.from_numpy(np.load(raw_paths[0])))
+            edge_features = torch.from_numpy(np.load(raw_paths[0])).float()
+            node_features_x = torch.from_numpy(np.load(raw_paths[1])).float()
+            node_features_y = torch.from_numpy(np.load(raw_paths[2])).float()
 
             if self.split is not None:
                 split_len = [int(len(node_features_x) * i) for i in self.split]
