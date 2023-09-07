@@ -10,6 +10,8 @@ from matplotlib.ticker import PercentFormatter
 import matplotlib.colors as mcolors
 import numpy as np
 import time
+import math
+import pandapower as pp
 
 from datasets.PowerFlowData import PowerFlowData
 from networks.MPN import MaskEmbdMultiMPN
@@ -29,14 +31,19 @@ feature_names_output = [
     'Bs'                    # -
 ]
 
-GET_RESULTS = False
-sample_number = 200000
+GET_RESULTS = True
+sample_number = 2000  # 00000
 cases = ['case14', 'case118', 'case6470rte']
-# cases = ['case6470rte']
+scenarios = [pp.networks.case14, pp.networks.case118, pp.networks.case6470rte]
+cases = ['case14']
+
+torch.manual_seed(42)
+np.random.seed(42)
+
 
 if GET_RESULTS:
 
-    for case in cases:
+    for scenario_index, case in enumerate(cases):
 
         case_name = case.split("case")[1]
 
@@ -48,6 +55,10 @@ if GET_RESULTS:
         if sample_number > len(testset):
             sample_number = len(testset)
         print(f'Number of samples: {sample_number}')
+
+        net = scenarios[scenario_index]()
+        lines = net.line.values
+        print(net.line)
 
         device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
         # device = torch.device("cuda:0")
@@ -83,7 +94,8 @@ if GET_RESULTS:
         for i, sample in enumerate(testset[:sample_number]):
             time_start_gnn = time.time()
             result = MPN_model(sample.to(device))
-
+            # print(sample.x,result)
+            # exit()
             preds.append(result.detach().cpu())
             targets.append(sample.y.detach().cpu())
             masks.append(sample.x[:, 10:].detach().cpu())
@@ -117,19 +129,53 @@ if GET_RESULTS:
         print(f'types shape: {types.shape}')
         print(f'error shape: {errors.shape}')
 
-        with open('./results/'+case_name+'_masks.npy', 'wb') as f:
-            np.save(f, masks)
-        with open('./results/'+case_name+'_types.npy', 'wb') as f:
-            np.save(f, types)
-        with open('./results/'+case_name+'_errors.npy', 'wb') as f:
-            np.save(f, errors)
+        # with open('./results/'+case_name+'_masks.npy', 'wb') as f:
+        #     np.save(f, masks)
+        # with open('./results/'+case_name+'_types.npy', 'wb') as f:
+        #     np.save(f, types)
+        # with open('./results/'+case_name+'_errors.npy', 'wb') as f:
+        #     np.save(f, errors)
 
+        i_error_table = np.zeros((sample_number, len(lines)))
+        for index, sample in enumerate(testset[:sample_number]):
+            for lines_index, line in enumerate(lines):
+                i = line[2]
+                j = line[3]
+
+                r = line[4] * line[5]
+                x = line[4] * line[6]
+
+                i_pred = math.sqrt((preds[index, i, 0] * math.cos(preds[index, i, 1]) -
+                                    preds[index, j, 0] * math.cos(preds[index, j, 1]))**2 +
+                                   (preds[index, i, 0] * math.sin(preds[index, i, 1]) -
+                                    preds[index, j, 0] * math.sin(preds[index, j, 1]))**2) \
+                    / math.sqrt(r**2 - x**2)
+
+                i_r = math.sqrt((targets[index, i, 0] * math.cos(targets[index, i, 1]) -
+                                 targets[index, j, 0] * math.cos(targets[index, j, 1]))**2 +
+                                (targets[index, i, 0] * math.sin(targets[index, i, 1]) -
+                                 targets[index, j, 0] * math.sin(targets[index, j, 1]))**2) \
+                    / math.sqrt(r**2 - x**2)
+
+                i_error = (i_pred - i_r)
+                i_error_table[index, lines_index] = i_error
+                # print(f'i_pred: {i_pred}, i_r: {i_r}')
+                # print(f'error: {i_pred - i_r}')
+
+        print(f'i_error_table shape: {i_error_table.shape}')
+        # print mean and std
+        print(f'i_error_table mean: {np.mean(np.abs(i_error_table))}')
+        print(f'i_error_table std: {np.std(np.abs(i_error_table))}')
+        with open('./results/'+case_name+'_i_error_table.npy', 'wb') as f:
+            np.save(f, i_error_table)
+
+        exit()
 
 # Plot results
 # cases = ['case14']
 plt.rcParams['font.family'] = ['serif']
 plt.subplots(3, 4,
-             figsize=(10, 7))
+             figsize=(10, 5))  # ()
 #     tight_layout=True,)
 # sharey=True,
 # sharex=True)
@@ -163,48 +209,53 @@ for counter_i, case in enumerate(cases):
     n_loads = np.sum(types[0, :] == 2)
     print(f'Number of Generators: {np.sum(types[0,:]==1)}')
     n_gens = np.sum(types[0, :] == 1)
-    print("="*80)   
+    print("="*80)
 
-    #print the average and standard deviation of errors for each feature only when mask is 1
-    indexes = np.where(masks[0, :, 0] == 1)[0]    
-    vm_errors = errors[:,indexes, 0]
-    #get average and std of vm_errors
-    vm_errors = vm_errors.reshape(-1,1)
-    #print the absolute average and standard deviation of errors for each feature only when mask is 1
-    print(f'Absolute Average of Voltage Magnitude: {np.mean(np.abs(vm_errors))}')
-    print(f'Absolute Standard Deviation of Voltage Magnitude: {np.std(np.abs(vm_errors))}')
+    # print the average and standard deviation of errors for each feature only when mask is 1
+    indexes = np.where(masks[0, :, 0] == 1)[0]
+    vm_errors = errors[:, indexes, 0]
+    # get average and std of vm_errors
+    vm_errors = vm_errors.reshape(-1, 1)
+    # print the absolute average and standard deviation of errors for each feature only when mask is 1
+    print(
+        f'Absolute Average of Voltage Magnitude: {np.mean(np.abs(vm_errors))}')
+    print(
+        f'Absolute Standard Deviation of Voltage Magnitude: {np.std(np.abs(vm_errors))}')
     print("- "*40)
 
-    indexes = np.where(masks[0, :, 1] == 1)[0]    
-    va_errors = errors[:,indexes, 1]
-    #get average and std of va_errors
-    va_errors = va_errors.reshape(-1,1)
-    #Print the absolute average and standard deviation of errors for each feature only when mask is 1
+    indexes = np.where(masks[0, :, 1] == 1)[0]
+    va_errors = errors[:, indexes, 1]
+    # get average and std of va_errors
+    va_errors = va_errors.reshape(-1, 1)
+    # Print the absolute average and standard deviation of errors for each feature only when mask is 1
     print(f'Absolute Average of Voltage Angle: {np.mean(np.abs(va_errors))}')
-    print(f'Absolute Standard Deviation of Voltage Angle: {np.std(np.abs(va_errors))}')
+    print(
+        f'Absolute Standard Deviation of Voltage Angle: {np.std(np.abs(va_errors))}')
     print("- "*40)
 
     indexes = np.where(masks[0, :, 2] == 1)[0]
-    ap_errors = errors[:,indexes, 2]
-    #get average and std of ap_errors
-    ap_errors = ap_errors.reshape(-1,1)
-    #print the absolute average and standard deviation of errors for each feature only when mask is 1
+    ap_errors = errors[:, indexes, 2]
+    # get average and std of ap_errors
+    ap_errors = ap_errors.reshape(-1, 1)
+    # print the absolute average and standard deviation of errors for each feature only when mask is 1
     print(f'Absolute Average of Active Power: {np.mean(np.abs(ap_errors))}')
-    print(f'Absolute Standard Deviation of Active Power: {np.std(np.abs(ap_errors))}')
+    print(
+        f'Absolute Standard Deviation of Active Power: {np.std(np.abs(ap_errors))}')
     print("- "*40)
 
     indexes = np.where(masks[0, :, 3] == 1)[0]
-    rp_errors = errors[:,indexes, 3]
-    #get average and std of rp_errors
-    rp_errors = rp_errors.reshape(-1,1)
-    #print the absolute average and standard deviation of errors for each feature only when mask is 1
+    rp_errors = errors[:, indexes, 3]
+    # get average and std of rp_errors
+    rp_errors = rp_errors.reshape(-1, 1)
+    # print the absolute average and standard deviation of errors for each feature only when mask is 1
     print(f'Absolute Average of Reactive Power: {np.mean(np.abs(rp_errors))}')
-    print(f'Absolute Standard Deviation of Reactive Power: {np.std(np.abs(rp_errors))}')
+    print(
+        f'Absolute Standard Deviation of Reactive Power: {np.std(np.abs(rp_errors))}')
     print("- "*40)
 
     print(f'Average of all errors: {np.mean(errors)}')
     print(f'Standard Deviation of all errors: {np.std(errors)}')
-    print("="*80)   
+    print("="*80)
     # get indexes of loads and generators
     load_idx = np.where(types[0, :] == 2)[0]
     gen_idx = np.where(types[0, :] == 1)[0]
@@ -258,7 +309,7 @@ for counter_i, case in enumerate(cases):
     print(errors.shape)
     n_nodes = errors.shape[1]
     n_bins = 300
-    n_values_to_print_y = 7
+    n_values_to_print_y = 5
     # Plot error per node average histogram
     # for n in range(errors.shape[0]):
 
@@ -268,9 +319,11 @@ for counter_i, case in enumerate(cases):
         plot_counter += 1
         error_per_node_all = np.zeros((n_bins, n_nodes, 4))
         plt.subplot(3, 4, plot_counter)
-        
+
         if plot_counter == 9:
-            multiplier = 0.4
+            multiplier = 0.3
+        elif plot_counter == 10:
+            multiplier = 0.6
         elif plot_counter == 6:
             multiplier = 0.4
         elif i == 2:
@@ -323,13 +376,14 @@ for counter_i, case in enumerate(cases):
         if i == 0:
             plt.xticks(np.linspace(0, n_bins, n_values_to_print_y),
                        np.round(bin_list_print, 3),
-                       rotation=45)
+                       rotation=15)
         else:
             plt.xticks(np.linspace(0, n_bins, n_values_to_print_y),
                        [f'{r:.1f}' for r in bin_list_print],
-                       rotation=45)
+                       rotation=15)
         if i == 0:
-            plt.ylabel(f'Case {case_name}\nNode Index', fontdict={'fontsize': 11})
+            plt.ylabel(f'Case {case_name}\nNode Index',
+                       fontdict={'fontsize': 11})
 
         # plt.ylabel('Node Index')
 
@@ -341,10 +395,10 @@ for counter_i, case in enumerate(cases):
             plt.title(f'{feature_names_output[i]}', fontdict={'fontsize': 12})
 
 
-plt.subplots_adjust(bottom=0.145, right=0.98, top=0.95,
-                    left=0.09, wspace=0.16, hspace=0.395) #hspace=0.326 wspawce=0.13
+plt.subplots_adjust(bottom=0.198, right=0.98, top=0.95,
+                    left=0.09, wspace=0.217, hspace=0.433)  # hspace=0.326 wspawce=0.13
 # cax = plt.axes([0.85, 0.1, 0.015, 0.9])
-cax = plt.axes([0.09, 0.06, 0.88, 0.01])
+cax = plt.axes([0.09, 0.106, 0.88, 0.01])
 plt.colorbar(location='bottom', cax=cax, label='Probability of the Error')
 
 plt.savefig('./results/error_distribution_per_node.pdf',
