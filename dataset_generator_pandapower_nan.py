@@ -31,8 +31,8 @@ number_of_processes = 10
 
 parser = argparse.ArgumentParser(prog='Power Flow Data Generator', description='')
 parser.add_argument('--case', type=str, default='118', help='e.g. 118, 14, 6470rte')
-parser.add_argument('--num_lines_to_remove', type=int, default=0, help='Number of lines to remove')
-parser.add_argument('--num_lines_to_add', type=int, default=0, help='Number of lines to add')
+parser.add_argument('--num_lines_to_remove', '-r', type=int, default=0, help='Number of lines to remove')
+parser.add_argument('--num_lines_to_add', '-a', type=int, default=0, help='Number of lines to add')
 args = parser.parse_args()
 
 num_lines_to_remove = args.num_lines_to_remove
@@ -51,7 +51,7 @@ else:
     print('Invalid test case.')
     exit()
 if num_lines_to_remove > 0 or num_lines_to_add > 0:
-    complete_case_name = case + 'perturbed' + f'{num_lines_to_remove:1d}' + 'r' + f'{num_lines_to_add:1d}' + 'a'
+    complete_case_name = 'case' + case + 'perturbed' + f'{num_lines_to_remove:1d}' + 'r' + f'{num_lines_to_add:1d}' + 'a'
 base_net = base_net_create()
 base_net.bus['name'] = base_net.bus.index
 print(base_net.bus)
@@ -93,12 +93,12 @@ def get_trafo_z_pu(net):
     return x_pu, r_pu
     
 def get_line_z_pu(net):
-    r = net.line['r_ohm_per_km'].values * net.line['length_km'] 
-    x = net.line['x_ohm_per_km'].values * net.line['length_km']
+    r = net.line['r_ohm_per_km'].values * net.line['length_km'].values
+    x = net.line['x_ohm_per_km'].values * net.line['length_km'].values
     from_bus = net.line['from_bus']
     to_bus = net.line['to_bus']
     vn_kv_to = net.bus['vn_kv'][to_bus].to_numpy()
-    vn_kv_to = pd.Series(vn_kv_to)
+    # vn_kv_to = pd.Series(vn_kv_to)
     zn = vn_kv_to**2 / net.sn_mva
     r_pu = r/zn
     x_pu = x/zn
@@ -121,7 +121,9 @@ def generate_data(sublist_size):
         net = base_net_create()
         remove_c_nf(net)
         
-        perturb_topology(net, num_lines_to_remove=2, num_lines_to_add=2) # TODO 
+        success_flag, net = perturb_topology(net, num_lines_to_remove=num_lines_to_remove, num_lines_to_add=num_lines_to_add) # TODO 
+        if success_flag == 1:
+            exit()
         n = net.bus.values.shape[0]
         A = get_adjacency_matrix(net)
         
@@ -270,6 +272,7 @@ def generate_data_parallel(num_samples, num_processes):
 
 if __name__ == '__main__':
     # Generate data
+    # generate_data(number_of_samples)
     edge_features_list, node_features_x_list, node_features_y_list = generate_data_parallel(number_of_samples, number_of_processes)
     
     # Turn the lists into numpy arrays

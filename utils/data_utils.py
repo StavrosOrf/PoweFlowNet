@@ -18,7 +18,7 @@ def perturb_topology(net, num_lines_to_remove=0, num_lines_to_add=0):
         4. if yes, return; else revert step 2 and retry. 
     """
     if num_lines_to_remove == 0 and num_lines_to_add == 0:
-        return net
+        return 0, net
     
     max_attempts = 20
     # 1. load topology
@@ -36,7 +36,7 @@ def perturb_topology(net, num_lines_to_remove=0, num_lines_to_add=0):
         net_perturbed = copy.deepcopy(net)
         if num_attempts == max_attempts:
             warnings.warn("Could not find a connected graph after {} attempts. Return original graph.".format(max_attempts))
-            return net
+            return 1, net
         to_be_removed = rng.choice(line_numbers, size=num_lines_to_remove, replace=False)
         pp.drop_lines(net_perturbed, lines_indices[to_be_removed])
         num_disconnected_bus = len(pp.topology.unsupplied_buses(net_perturbed))
@@ -57,4 +57,4 @@ def perturb_topology(net, num_lines_to_remove=0, num_lines_to_add=0):
             copied_line['max_i_ka'].item()
         )
         
-    return net_perturbed
+    return 0, net_perturbed
