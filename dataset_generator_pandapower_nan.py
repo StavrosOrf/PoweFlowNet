@@ -1,36 +1,61 @@
 import time
+import argparse
 import pandas as pd
 import pandapower as pp
 import numpy as np
 import networkx as nx
 import multiprocessing as mp
 import os
-# write file documentation here
 
+from utils.data_utils import perturb_topology
 
+def create_case3():
+    net = pp.create_empty_network()
+    net.sn_mva = 100
+    b0 = pp.create_bus(net, vn_kv=345., name='bus 0')
+    b1 = pp.create_bus(net, vn_kv=345., name='bus 1')
+    b2 = pp.create_bus(net, vn_kv=345., name='bus 2')
+    pp.create_ext_grid(net, bus=b0, vm_pu=1.02, name="Grid Connection")
+    pp.create_load(net, bus=b2, p_mw=10.3, q_mvar=3, name="Load")
+    # pp.create_gen(net, bus=b1, p_mw=0.5, vm_pu=1.03, name="Gen", max_p_mw=1)
+    pp.create_line(net, from_bus=b0, to_bus=b1, length_km=10, name='line 01', std_type='NAYY 4x50 SE')
+    pp.create_line(net, from_bus=b1, to_bus=b2, length_km=5, name='line 01', std_type='NAYY 4x50 SE')
+    pp.create_line(net, from_bus=b2, to_bus=b0, length_km=20, name='line 01', std_type='NAYY 4x50 SE')
+    
+    net.line['c_nf_per_km'] = pd.Series(0., index=net.line['c_nf_per_km'].index, name=net.line['c_nf_per_km'].name)
+    
+    return net
 
+number_of_samples = 2000
+number_of_processes = 10
 
-# dict_keys(['bus', 'load', 'sgen', 'motor', 'asymmetric_load', 'asymmetric_sgen', 'storage', 'gen', 'switch', 'shunt', 'svc', 'ext_grid', 'line', 'trafo', 'trafo3w', 'impedance', 'tcsc', 'dcline', 'ward', 'xward', 'measurement', 'pwl_cost', 'poly_cost', 'characteristic', 'controller', 'group', 'line_geodata', 'bus_geodata', '_empty_res_bus', '_empty_res_ext_grid', '_empty_res_line', '_empty_res_trafo', '_empty_res_load', '_empty_res_asymmetric_load', '_empty_res_asymmetric_sgen', '_empty_res_motor', '_empty_res_sgen', '_empty_res_shunt', '_empty_res_svc', '_empty_res_switch', '_empty_res_impedance', '_empty_res_tcsc', '_empty_res_dcline', '_empty_res_ward', '_empty_res_xward', '_empty_res_trafo_3ph', '_empty_res_trafo3w', '_empty_res_bus_3ph', '_empty_res_ext_grid_3ph', '_empty_res_line_3ph', '_empty_res_asymmetric_load_3ph', '_empty_res_asymmetric_sgen_3ph', '_empty_res_storage', '_empty_res_storage_3ph', '_empty_res_gen',
-        #   '_ppc', '_ppc0', '_ppc1', '_ppc2', '_is_elements', '_pd2ppc_lookups', 'version', 'format_version', 'converged', 'OPF_converged', 'name', 'f_hz', 'sn_mva', '_empty_res_load_3ph', '_empty_res_sgen_3ph', 'std_types', 'res_bus', 'res_line', 'res_trafo', 'res_trafo3w', 'res_impedance', 'res_ext_grid', 'res_load', 'res_motor', 'res_sgen', 'res_storage', 'res_shunt', 'res_gen', 'res_ward', 'res_xward', 'res_dcline', 'res_asymmetric_load', 'res_asymmetric_sgen', 'res_switch', 'res_tcsc', 'res_svc', 'res_bus_est', 'res_line_est', 'res_trafo_est', 'res_trafo3w_est', 'res_impedance_est', 'res_switch_est', 'res_bus_sc', 'res_line_sc', 'res_trafo_sc', 'res_trafo3w_sc', 'res_ext_grid_sc', 'res_gen_sc', 'res_sgen_sc', 'res_switch_sc', 'res_bus_3ph', 'res_line_3ph', 'res_trafo_3ph', 'res_ext_grid_3ph', 'res_shunt_3ph', 'res_load_3ph', 'res_sgen_3ph', 'res_storage_3ph', 'res_asymmetric_load_3ph', 'res_asymmetric_sgen_3ph', 'user_pf_options'])
+parser = argparse.ArgumentParser(prog='Power Flow Data Generator', description='')
+parser.add_argument('--case', type=str, default='118', help='e.g. 118, 14, 6470rte')
+parser.add_argument('--num_lines_to_remove', type=int, default=0, help='Number of lines to remove')
+parser.add_argument('--num_lines_to_add', type=int, default=0, help='Number of lines to add')
+args = parser.parse_args()
 
-# net = pp.networks.GBnetwork()
+num_lines_to_remove = args.num_lines_to_remove
+num_lines_to_add = args.num_lines_to_add
+case = args.case
 
-# algorithm (str, “nr”) - algorithm that is used to solve the power flow problem.
-
-# The following algorithms are available:
-
-# “nr” Newton-Raphson (pypower implementation with numba accelerations)
-
-# “iwamoto_nr” Newton-Raphson with Iwamoto multiplier (maybe slower than NR but more robust)
-
-# “bfsw” backward/forward sweep (specially suited for radial and weakly-meshed networks)
-
-# “gs” gauss-seidel (pypower implementation)
-
-# “fdbx” fast-decoupled (pypower implementation)
-
-# “fdxb” fast-decoupled (pypower implementation)
-
+if case == '3':
+    base_net_create = create_case3
+elif case == '14':
+    base_net_create = pp.networks.case14
+elif case == '118':
+    base_net_create = pp.networks.case118
+elif case == '6470rte':
+    base_net_create = pp.networks.case6470rte
+else:
+    print('Invalid test case.')
+    exit()
+if num_lines_to_remove > 0 or num_lines_to_add > 0:
+    complete_case_name = case + 'perturbed' + f'{num_lines_to_remove:1d}' + 'r' + f'{num_lines_to_add:1d}' + 'a'
+base_net = base_net_create()
+base_net.bus['name'] = base_net.bus.index
+print(base_net.bus)
+print(base_net.line)
 
 def create_case3():
     net = pp.create_empty_network()
@@ -80,22 +105,11 @@ def get_line_z_pu(net):
     
     return r_pu, x_pu
 
-number_of_samples = 30000
-number_of_processes = 10
-
-test_case = 'case118perturbed'
-base_net_create = pp.networks.case118
-# base_net_create = create_case3
-base_net = base_net_create()
-base_net.bus['name'] = base_net.bus.index
-print(base_net.bus)
-print(base_net.line)
-
-# Get Adjacency Matrix
-bus_names = base_net.bus['name'].values.tolist()
-n = base_net.bus.values.shape[0]
-multi_graph = pp.topology.create_nxgraph(base_net)
-A = nx.adjacency_matrix(multi_graph).todense()
+def get_adjacency_matrix(net):
+    multi_graph = pp.topology.create_nxgraph(net)
+    A = nx.adjacency_matrix(multi_graph).todense() 
+    
+    return A
 
 def generate_data(sublist_size):
     edge_features_list = []
@@ -103,12 +117,14 @@ def generate_data(sublist_size):
     node_features_y_list = []
     # graph_feature_list = []
 
-    while True:
-        # net = base_net
+    while len(edge_features_list) < sublist_size:
         net = base_net_create()
         remove_c_nf(net)
-        # unify_vn(net)
-        trafo_r_pu, trafo_x_pu = get_trafo_z_pu(net)
+        
+        perturb_topology(net, num_lines_to_remove=2, num_lines_to_add=2) # TODO 
+        n = net.bus.values.shape[0]
+        A = get_adjacency_matrix(net)
+        
         net.bus['name'] = base_net.bus.index
 
         r = net.line['r_ohm_per_km'].values    
@@ -230,9 +246,7 @@ def generate_data(sublist_size):
         node_features_y_list.append(node_features_y)
         # graph_feature_list.append(baseMVA)
 
-        if len(edge_features_list) == sublist_size:
-            break
-        elif len(edge_features_list) % 10 == 0:
+        if len(edge_features_list) % 10 == 0 or len(edge_features_list) == sublist_size:
             print(f'[Process {os.getpid()}] Current sample number: {len(edge_features_list)}')
             
     return edge_features_list, node_features_x_list, node_features_y_list
@@ -265,7 +279,7 @@ if __name__ == '__main__':
     # graph_features = np.array(graph_feature_list)
 
     # Print the shapes
-    print(f'Adjacency matrix shape: {A.shape}')
+    # print(f'Adjacency matrix shape: {A.shape}')
     print(f'edge_features shape: {edge_features.shape}')
     print(f'node_features_x shape: {node_features_x.shape}')
     print(f'node_features_y shape: {node_features_y.shape}')
@@ -285,20 +299,20 @@ if __name__ == '__main__':
 
     # save the features
     os.makedirs("./data/raw", exist_ok=True)
-    with open("./data/raw/"+test_case+"_edge_features.npy", 'wb') as f:
+    with open("./data/raw/"+complete_case_name+"_edge_features.npy", 'wb') as f:
         np.save(f, edge_features)
 
-    with open("./data/raw/"+test_case+"_node_features_x.npy", 'wb') as f:
+    with open("./data/raw/"+complete_case_name+"_node_features_x.npy", 'wb') as f:
         np.save(f, node_features_x)
 
-    with open("./data/raw/"+test_case+"_node_features_y.npy", 'wb') as f:
+    with open("./data/raw/"+complete_case_name+"_node_features_y.npy", 'wb') as f:
         np.save(f, node_features_y)
 
     # with open("./data/"+test_case+"_graph_features.npy", 'wb') as f:
     #     np.save(f, graph_features)
 
-    with open("./data/raw/"+test_case+"_adjacency_matrix.npy", 'wb') as f:
-        np.save(f, A)
+    # with open("./data/raw/"+test_case+"_adjacency_matrix.npy", 'wb') as f:
+    #     np.save(f, A)
     
 exit()
 #  Computation time experimental comparison beginning (will be moved to other file later on)

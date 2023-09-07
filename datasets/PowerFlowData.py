@@ -88,7 +88,6 @@ class PowerFlowData(InMemoryDataset):
         class instance of PowerFlowData
     """
     partial_file_names = [
-        "adjacency_matrix.npy",
         "edge_features.npy",
         "node_features_x.npy",
         "node_features_y.npy"
