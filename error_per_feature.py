@@ -58,7 +58,7 @@ if GET_RESULTS:
 
         net = scenarios[scenario_index]()
         lines = net.line.values
-        print(net.line)
+        # print(net.line)
 
         device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
         # device = torch.device("cuda:0")
