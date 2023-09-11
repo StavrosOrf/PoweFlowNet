@@ -33,7 +33,7 @@ feature_names_output = [
 
 GET_RESULTS = True
 sample_number = 2000  # 00000
-cases = ['case14', 'case118', 'case6470rte']
+cases = ['case14', 'case118']#, 'case6470rte']
 scenarios = [pp.networks.case14, pp.networks.case118, pp.networks.case6470rte]
 # cases = ['case14']
 
@@ -72,7 +72,12 @@ if GET_RESULTS:
         lines = net.line.values
         # print(net.line)
         print(f'Number of lines: {len(lines)}')
-        r_pu, x_pu = get_line_z_pu(net)
+        r_pu, x_pu = get_line_z_pu(net)     
+        edgemean = testset.edgemean[0,:2].detach().cpu()
+        edgestd = testset.edgestd[0,:2].detach().cpu()
+
+        r_pu = torch.tensor(r_pu) * edgestd[0] + edgemean[0]
+        x_pu = torch.tensor(x_pu) * edgestd[1] + edgemean[1]
 
         device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
         # device = torch.device("cuda:0")
