@@ -409,6 +409,10 @@ class MaskEmbdMultiMPN(nn.Module):
 
     def is_directed(self, edge_index):
         'determine if a graph id directed by reading only one edge'
+        if edge_index.shape[1] == 0:
+            # no edge at all, only single nodes. automatically undirected
+            return False
+        # next line: if there is the reverse of the first edge does not exist, then directed. 
         return edge_index[0,0] not in edge_index[1,edge_index[0,:] == edge_index[1,0]]
     
     def undirect_graph(self, edge_index, edge_attr):
