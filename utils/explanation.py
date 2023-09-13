@@ -43,6 +43,7 @@ def explain_epoch(
         nx_G: the networkx graph of the first graph returned by the dataloader, for plotting
 
     """
+    raise NotImplementedError('please wait for next version.')
     model.eval()
 
     num_nodes, max_hopcount, nx_G = get_graphinfo(next(iter(loader)))
