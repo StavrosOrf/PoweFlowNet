@@ -186,14 +186,14 @@ def plot_loss_subgraph(
     quantiles['3-sigma']['alpha'] = 0.1
     
     fig, ax = plt.subplots(figsize=(8,6))
-    plt.plot(range(mean.shape[0]), mean, color='C8',**kwargs)
+    plt.plot(range(mean.shape[0]), mean, color='C9', linewidth=2.5, **kwargs)
     for key, value in quantiles.items():
         lower_quantile = value['lower']
         upper_quantile = value['upper']
         alpha = value['alpha']
         plt.fill_between(range(mean.shape[0]), 
                          lower_quantile, upper_quantile, 
-                         alpha=alpha, 
+                         alpha=alpha,
                          color='C9',
                          **kwargs)
     ax.set_xlim([0, mean.shape[0]-1])
