@@ -1,0 +1,10 @@
+figure.figsize: 12, 6
+figure.dpi: 300
+figure.autolayout: True
+axes.titlesize: 16
+axes.labelsize: 16
+xtick.labelsize: 14
+xtick.minor.visible: True
+ytick.labelsize: 14
+ytick.minor.visible: True
+image.cmap: Blues

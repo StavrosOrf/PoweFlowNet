@@ -2,8 +2,11 @@
     - explain_epoch - generate loss measurements for each node given k-hop subgraphs centered on that node 
     - some helper functions for the explain_epoch function
 """
-from typing import Callable
+from typing import Callable, Annotated
 
+import matplotlib.pyplot as plt
+import matplotlib as mpl
+import numpy as np
 import torch
 from torch_geometric.loader import DataLoader
 from torch_geometric.utils.convert import to_networkx
@@ -18,101 +21,222 @@ import networkx as nx
 LOG_DIR = 'logs'
 SAVE_DIR = 'models'
 
-@torch.no_grad()
+@torch.no_grad() # TODO 
 def explain_epoch(
         model: nn.Module,
         loader: DataLoader,
         loss_fn: Callable,
         device: str = 'cpu',
-        samples=16) -> float:
+        num_batches=16) -> float:
     """
-    Generates loss measurements for each node given k-hop subgraphs centered on that node.
+    Generates loss measurements for each node given k-hop subgraphs centered on that node. 
+    
+    Time complexity: O(num_nodes * diameter * num_batches)
 
     Args:
         model (nn.Module): The trained neural network model to be evaluated.
         loader (DataLoader): The PyTorch Geometric DataLoader containing the evaluation data.
         loss_fn (nn.Module): The loss function to use to calculate losses
         device (str): The device used for evaluating the model (default: 'cpu').
-        samples (int): The number of graphs to sample from the dataloader
+        num_batches (int): The number of graphs to sample from the dataloader
 
     Returns:
-        hop_losses: loss averaged over all nodes and batches, for each k-hop distance
-        hop_losses_std: standard deviation of loss averaged over all nodes and batches, for each k-hop distance
-        subgraph_nodes: for each node and k-hop distance, the size of the corresponding subgraph
         loss_gdata: for each node and k-hop distance, the average loss across batches
+        subgraph_nodes: for each node and k-hop distance, the size of the corresponding subgraph
         nx_G: the networkx graph of the first graph returned by the dataloader, for plotting
 
     """
-    raise NotImplementedError('please wait for next version.')
     model.eval()
 
-    num_nodes, max_hopcount, nx_G = get_graphinfo(next(iter(loader)))
+    num_nodes, diameter, nx_G = get_graphinfo(loader.dataset[0]) # assume all samples have the same graph, look at the first sample
 
-    losses = torch.zeros((num_nodes, max_hopcount+1))
-    num_samples = torch.zeros((num_nodes, max_hopcount+1))
-    subgraph_nnodes = torch.zeros((num_nodes, max_hopcount+1))
+    losses = torch.zeros((num_nodes, diameter+1))
+    # later will create one subgraph for each node. 
+    num_samples = torch.zeros((num_nodes, diameter+1)) # how many samples per subgraph are considered
+    subgraph_nnodes = torch.zeros((num_nodes, diameter+1)) # how many nodes are in each subgraph 
 
-    pbar = tqdm(loader, total=len(loader))
-    for iteration, data in enumerate(pbar):
-        if iteration > samples:
+    pbar = tqdm(loader, total=num_batches) # accepts batch_size >= 1
+    for batch_idx, data in enumerate(pbar):
+        if batch_idx > num_batches:
             break
 
         data = data.to(device)
 
-        ## to make the graph undirected
-        # data.edge_index = torch.cat((data.edge_index, data.edge_index[[1, 0]]), dim=1)
-        # data.edge_attr = torch.cat((data.edge_attr, data.edge_attr), dim=0)
-
-        for n in range(num_nodes):
-
-            for m in range(1, max_hopcount + 1):
-
-                node_subset, _, _, edge_mask = k_hop_subgraph(torch.tensor([n]), m, data.edge_index,\
+        for node_idx in range(num_nodes):
+            for m in range(0, diameter + 1):
+                # Step 0: make subgraph
+                bi_edge_index, bi_edge_attr = _make_bidirectional(data.edge_index, data.edge_attr)
+                node_subset, edge_index, mapping, edge_mask = k_hop_subgraph(node_idx=node_idx, num_hops=m, 
+                                                                             edge_index=bi_edge_index,
+                                                                             num_nodes=num_nodes*len(data), # num_nodes * batch_size
                                                                              relabel_nodes=False, directed=False)
 
-                filtered_edgeattrs = data.edge_attr[edge_mask,:]
-                filtered_edgeind = data.edge_index[:,edge_mask]
+                filtered_edgeattrs = bi_edge_attr[edge_mask,:]
+                filtered_edgeind = bi_edge_index[:,edge_mask]
 
-                masked_data = Data(x=data.x, y=data.y, edge_index=filtered_edgeind, edge_attr=filtered_edgeattrs, batch=data.batch)
+                masked_data = Data(x=data.x, y=data.y, edge_index=filtered_edgeind, edge_attr=filtered_edgeattrs, batch=data.batch).to(device)
 
-                raise RuntimeError("fix the next lines")
-                out = model(masked_data) # TODO LOOK HERE
+                # Step 1: inference model
+                out = model(masked_data)
 
                 if isinstance(loss_fn, Masked_L2_loss):
-                    loss = loss_fn(out[n], data.y[n], data.x[:, 10:][n])
+                    loss = loss_fn(out[node_idx], data.y[node_idx], data.x[:, 10:][node_idx]) # already averaged over samples
                 else:
-                    loss = loss_fn(out[n], data.y[n])
+                    loss = loss_fn(out[node_idx], data.y[node_idx])
 
-                losses[n,m] += loss.item()
-                num_samples[n,m] += 1
-                if iteration == 0:
+                losses[node_idx,m] += loss.item() # accumulated across batches
+                num_samples[node_idx,m] += len(data) # += batch_size, count the total number of samples
+                if batch_idx == 0:
                     # print(n, m, node_subset)
-                    subgraph_nnodes[n,m] += node_subset.shape[0]
+                    subgraph_nnodes[node_idx,m] += node_subset.shape[0]
+    
+    # return: (1) loss averaged over samples (2) number of nodes in each subgraph 
+    # (3) networkx graph of the first sample
+    return (losses / num_samples), subgraph_nnodes, nx_G
 
-    return (losses / num_samples).mean(0), (losses / num_samples).std(0), subgraph_nnodes, (losses / num_samples), nx_G
+def get_graphinfo(data: Data) -> (int, int, nx.Graph):
+    G = nx.from_edgelist(data.edge_index.T.tolist()) # NOTICE: actually has different results than torch_geometric.to_networkx
+    diameter = nx.diameter(G)
+    # diameter = max([max(j.values()) for (i,j) in nx.shortest_path_length(G)]) # equivalent to nx.diameter(G)
+    num_nodes = len(G.nodes)
 
-def get_graphinfo(data: Data):
-    G = to_networkx(data)
-    # A = nx.adjacency_matrix(G).toarray()
-    max_hopcount = max([max(j.values()) for (i,j) in nx.shortest_path_length(G)])
-    num_nodes = data.x.shape[0]
-    # masks = []
-    # # for each node
-    # # pbar = tqdm(range(num_nodes), total=num_nodes, position=1, leave=False)
-    # for n in range(num_nodes):
-    #     mask = []
-    #     # for each hopcount n
-    #     for c in range(1, max_hopcount+1):
-    #         # run one hot with adjacency matrix n times
-    #         x = np.zeros(num_nodes)
-    #         x[n] = 1
-    #         for _ in range(c):
-    #             x = np.matmul(A, x) + x
-    #         # the mask for each is the non-zero values in the previously one-hot vector
-    #         mask.append(x != np.zeros(num_nodes)) # true means it's an n-hop neighbor
-        
-    #     node_mask = torch.nn.functional.one_hot(torch.tensor([n]), num_classes=num_nodes)
-    #     neighborhood_mask = torch.from_numpy(np.array(mask))
-    #     masks.append((node_mask, neighborhood_mask))
+    return num_nodes, diameter, G
 
-    return num_nodes, max_hopcount, G
+def _make_bidirectional(edge_index: torch.Tensor, edge_attr) -> (torch.Tensor, torch.Tensor):
+    """
+    Converts a directed edge index to an undirected edge index.
+
+    Args:
+        edge_index (torch.Tensor): A PyTorch Tensor of shape (2, num_edges) containing the edge index of a directed graph.
+
+    Returns:
+        torch.Tensor: A PyTorch Tensor of shape (2, 2*num_edges) containing the edge index of an undirected graph.
+
+    """
+    return torch.cat([edge_index, edge_index.flip([0])], dim=1), torch.cat([edge_attr, edge_attr.clone()], dim=0)
+
+@plt.style.context('utils.article')
+def plot_num_nodes_subgraph(
+    num_nodes_subgraph: Annotated[torch.tensor, 'num_nodes x diameter+1'],
+    save_path: str = 'results/explain/num_nodes_subgraph.png',
+    kwargs: dict = {}
+) -> None:
+    sorted, indices = torch.sort(num_nodes_subgraph[:,1:].sum(dim=1))
+
+    fig, ax = plt.subplots(figsize=(10,6))
+    # plt. commands automatically call the current figure and axis
+    plt.imshow(num_nodes_subgraph[indices], interpolation='nearest', aspect='auto', **kwargs)
+    cbar = plt.colorbar()
+    cbar.ax.set_ylabel('Number of Nodes in Subgraph')
+    xtick_loc = list(range(0, num_nodes_subgraph.shape[1], 2))
+    if num_nodes_subgraph.shape[1] - 1 not in xtick_loc:
+        xtick_loc.append(num_nodes_subgraph.shape[1] - 1)
+    xtick_label = xtick_loc
+    ax.set_xticks(xtick_loc, 
+                  labels=xtick_label,
+                  minor=False)
+    ax.set_xticks(range(0, num_nodes_subgraph.shape[1]), minor=True)
+    ytick_loc = np.linspace(0, num_nodes_subgraph.shape[0]-1, 7, endpoint=True, dtype=int)
+    ytick_label = (ytick_loc+1).tolist()
+    ax.set_yticks(ytick_loc, ytick_label, minor=False)
+    plt.xlabel(r'Subgraph Size ($k$-hop)')
+    plt.ylabel('Node Index')
+
+    # print worst ones
+    worst = [(int(x1), int(x2)) for x1, x2 in list(zip(num_nodes_subgraph[:,1:].sum(dim=1)[indices], indices))]
+    print('subgsize,nidx')
+    [print(x[0], "\t", x[1]) for x in worst[-16:]]
+    plt.savefig(save_path, dpi=300)
+    
+    pass
+
+@plt.style.context('utils.article')
+def plot_loss_subgraph(
+    loss_subgraph: Annotated[torch.Tensor, 'num_nodes x diameter+1'],
+    save_path: str = 'results/explain/loss_subgraph.png',
+    kwargs: dict = {}
+) -> None:
+    mean = loss_subgraph.log().mean(dim=0).exp() # across nodes
+    quantiles = {
+        '1-sigma': {},
+        '2-sigma': {},
+        '3-sigma': {}
+    }
+    # 1-sigma quantiles, in between covers 68% of the data
+    lower_quantile = torch.quantile(loss_subgraph, 0.16, dim=0)
+    upper_quantile = torch.quantile(loss_subgraph, 0.84, dim=0)
+    quantiles['1-sigma']['lower'] = lower_quantile
+    quantiles['1-sigma']['upper'] = upper_quantile
+    
+    # 2-sigma quantiles, in between covers 95% of the data
+    lower_quantile = torch.quantile(loss_subgraph, 0.025, dim=0)
+    upper_quantile = torch.quantile(loss_subgraph, 0.975, dim=0)
+    quantiles['2-sigma']['lower'] = lower_quantile
+    quantiles['2-sigma']['upper'] = upper_quantile
+    
+    # 3-sigma quantiles, in between covers 99.7% of the data
+    lower_quantile = torch.quantile(loss_subgraph, 0.00135, dim=0)
+    upper_quantile = torch.quantile(loss_subgraph, 0.99865, dim=0)
+    quantiles['3-sigma']['lower'] = lower_quantile
+    quantiles['3-sigma']['upper'] = upper_quantile
+    
+    # transparencies for quantiles
+    quantiles['1-sigma']['alpha'] = 0.4
+    quantiles['2-sigma']['alpha'] = 0.2
+    quantiles['3-sigma']['alpha'] = 0.1
+    
+    fig, ax = plt.subplots(figsize=(8,6))
+    plt.plot(range(mean.shape[0]), mean, color='C9', linewidth=2.5, **kwargs)
+    for key, value in quantiles.items():
+        lower_quantile = value['lower']
+        upper_quantile = value['upper']
+        alpha = value['alpha']
+        plt.fill_between(range(mean.shape[0]), 
+                         lower_quantile, upper_quantile, 
+                         alpha=alpha,
+                         color='C9',
+                         **kwargs)
+    ax.set_xlim([0, mean.shape[0]-1])
+    ax.set_yscale('log')
+    plt.title("Loss Per Subgraph")
+    plt.xlabel(r'Subgraph Size ($k$-hop)')
+    plt.ylabel('Loss')
+    print(mean)
+    
+    plt.savefig(save_path, dpi=300)
+    pass
+
+@plt.style.context('utils.article')
+def plot_loss_subgraph_per_node(
+    loss_subgraph: Annotated[torch.Tensor, 'num_nodes x diameter+1'],
+    save_path: str = 'results/explain/loss_subgraph_per_node.png',
+    kwargs: dict = {}
+) -> None:
+    sorted, indices = torch.sort(loss_subgraph[:,1:].sum(dim=1))
+
+    fig, ax = plt.subplots(figsize=(10,6))
+    plt.imshow(loss_subgraph[indices], interpolation='nearest', aspect='auto',
+               cmap='Blues', norm=mpl.colors.LogNorm())
+    plt.xlabel(r'Subgraph Size ($k$-hop)')
+    plt.ylabel('Node Index (from worst to best loss)')
+    cbar = plt.colorbar()
+    cbar.ax.set_ylabel('Loss')
+    xtick_loc = list(range(0, loss_subgraph.shape[1], 2))
+    if loss_subgraph.shape[1] - 1 not in xtick_loc:
+        xtick_loc.append(loss_subgraph.shape[1] - 1)
+    xtick_label = xtick_loc
+    ax.set_xticks(xtick_loc, 
+                  labels=xtick_label,
+                  minor=False)
+    ax.set_xticks(range(0, loss_subgraph.shape[1]), minor=True)
+    ytick_loc = np.linspace(0, loss_subgraph.shape[0]-1, 7, endpoint=True, dtype=int)
+    ytick_label = (ytick_loc+1).tolist()
+    ax.set_yticks(ytick_loc, ytick_label, minor=False)
+    
+    # print worst ones
+    worst = [(int(x1), int(x2)) for x1, x2 in list(zip(loss_subgraph[:,1:].sum(dim=1)[indices], indices))]
+    print('loss,    nidx')
+    [print(x[0], "\t", x[1]) for x in worst[-16:]]
+    
+    plt.savefig(save_path, dpi=300)
+    pass
