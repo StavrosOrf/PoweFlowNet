@@ -250,7 +250,7 @@ def subplot_num_nodes_subgraph(
 ) -> None:
     fig = plt.figure(figsize=(0.75+9.25*len(num_nodes_subgraph_dict), 8))
     num_subplots = len(num_nodes_subgraph_dict)
-    im_cbar_width_ratio = 6
+    im_cbar_width_ratio = 7
     gspec = gridspec.GridSpec(nrows=1, ncols=im_cbar_width_ratio*num_subplots+1, figure=fig)
     
     # first len(num_nodes_subgraph_dict) axes, plot imshow
