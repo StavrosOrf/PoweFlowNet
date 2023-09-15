@@ -6,7 +6,8 @@ from networks.MPN import MPN_simplenet, MaskEmbdMultiMPN
 from datasets.PowerFlowData import PowerFlowData
 from torch_geometric.loader import DataLoader
 from utils.evaluation import load_model
-from utils.explanation import explain_epoch, plot_loss_subgraph, plot_loss_subgraph_per_node, plot_num_nodes_subgraph
+from utils.explanation import explain_epoch, plot_loss_subgraph, plot_loss_subgraph_per_node, plot_num_nodes_subgraph, \
+    subplot_num_nodes_subgraph, subplot_loss_subgraph, subplot_loss_subgraph_per_node
 from utils.custom_loss_functions import Masked_L2_loss
 import torch
 import matplotlib.pyplot as plt
@@ -20,9 +21,9 @@ args = parser.parse_args()
 
 def main():
     # Parameters
-    run_id = '20230627-9288' # mse, or 20230627-5949, mixed
+    run_id = '20230627-1251' # mse, or 20230627-5949, mixed
     data_dir = '/home/nlin/data/volume_2/power_flow_dataset'
-    grid_case = '118v2'
+    grid_case = '6470rtev2'
     num_batches = args.num_batches
     batch_size = args.batch_size
     result_dir = 'results/explain/'+run_id
@@ -62,10 +63,22 @@ def main():
         torch.save(num_nodes_subgraph, os.path.join(result_dir, 'num_nodes_subgraph'+'_case_'+grid_case+'.pt'))
     
     # Plot loss per subgraph
-    plot_num_nodes_subgraph(num_nodes_subgraph, save_path=os.path.join(result_dir, 'num_nodes_subgraph'+'_case_'+grid_case+'.png'))
-    plot_loss_subgraph(loss_subgraph, save_path=os.path.join(result_dir, 'loss_subgraph'+'_case_'+grid_case+'.png'))
-    plot_loss_subgraph_per_node(loss_subgraph, save_path=os.path.join(result_dir, 'loss_subgraph_per_node'+'_case_'+grid_case+'.png'))
-    
+    # plot_num_nodes_subgraph(num_nodes_subgraph/num_nodes_subgraph.max(), save_path=os.path.join(result_dir, 'num_nodes_subgraph'+'_case_'+grid_case+'.png'))
+    # plot_loss_subgraph(loss_subgraph, save_path=os.path.join(result_dir, 'loss_subgraph'+'_case_'+grid_case+'.png'))
+    # plot_loss_subgraph_per_node(loss_subgraph, save_path=os.path.join(result_dir, 'loss_subgraph_per_node'+'_case_'+grid_case+'.png'))
+    all_num_nodes_subgraph = {
+        '14v2': num_nodes_subgraph/num_nodes_subgraph.max(),
+        '118v2': num_nodes_subgraph/num_nodes_subgraph.max(),
+        '6470rtev2': num_nodes_subgraph/num_nodes_subgraph.max()
+    }
+    all_loss_subgraph = {
+        '14v2': loss_subgraph,
+        '118v2': loss_subgraph,
+        '6470rtev2': loss_subgraph
+    }
+    subplot_num_nodes_subgraph(all_num_nodes_subgraph, save_path=os.path.join(result_dir, 'subplot_num_nodes_subgraph'+'_case_'+grid_case+'.png'))
+    subplot_loss_subgraph(all_loss_subgraph, save_path=os.path.join(result_dir, 'subplot_loss_subgraph'+'_case_'+grid_case+'.png'))
+    subplot_loss_subgraph_per_node(all_loss_subgraph, save_path=os.path.join(result_dir, 'subplot_loss_subgraph_per_node'+'_case_'+grid_case+'.png'))
 
 if __name__ == '__main__':
     main()
