@@ -63,7 +63,11 @@ def explain_epoch(
 
         data = data.to(device)
 
-        for node_idx in range(num_nodes):
+        if num_nodes > 1000:
+            sampled_nodes = np.random.choice(num_nodes, 350, replace=False).tolist() # use these nodes as center to create subgraphs
+        else:
+            sampled_nodes = np.arange(num_nodes).tolist()
+        for node_idx in sampled_nodes:
             for m in range(0, diameter + 1):
                 # Step 0: make subgraph
                 bi_edge_index, bi_edge_attr = _make_bidirectional(data.edge_index, data.edge_attr)
@@ -85,7 +89,7 @@ def explain_epoch(
                 else:
                     loss = loss_fn(out[node_idx], data.y[node_idx])
 
-                losses[node_idx,m] += loss.item() # accumulated across batches
+                losses[node_idx,m] += loss.item()*len(data) # accumulated across batches
                 num_samples[node_idx,m] += len(data) # += batch_size, count the total number of samples
                 if batch_idx == 0:
                     # print(n, m, node_subset)
@@ -120,7 +124,7 @@ def _make_bidirectional(edge_index: torch.Tensor, edge_attr) -> (torch.Tensor, t
 def plot_num_nodes_subgraph(
     num_nodes_subgraph: Annotated[torch.tensor, 'num_nodes x diameter+1'],
     save_path: str = 'results/explain/num_nodes_subgraph.png',
-    kwargs: dict = {}
+    **kwargs: dict
 ) -> None:
     sorted, indices = torch.sort(num_nodes_subgraph[:,1:].sum(dim=1))
 
@@ -155,7 +159,7 @@ def plot_num_nodes_subgraph(
 def plot_loss_subgraph(
     loss_subgraph: Annotated[torch.Tensor, 'num_nodes x diameter+1'],
     save_path: str = 'results/explain/loss_subgraph.png',
-    kwargs: dict = {}
+    **kwargs: dict
 ) -> None:
     mean = loss_subgraph.log().mean(dim=0).exp() # across nodes
     quantiles = {
@@ -211,7 +215,7 @@ def plot_loss_subgraph(
 def plot_loss_subgraph_per_node(
     loss_subgraph: Annotated[torch.Tensor, 'num_nodes x diameter+1'],
     save_path: str = 'results/explain/loss_subgraph_per_node.png',
-    kwargs: dict = {}
+    **kwargs: dict
 ) -> None:
     sorted, indices = torch.sort(loss_subgraph[:,1:].sum(dim=1))
 
@@ -246,7 +250,7 @@ def plot_loss_subgraph_per_node(
 def subplot_num_nodes_subgraph(
     num_nodes_subgraph_dict: dict[str, Annotated[torch.tensor, 'num_nodes x diameter+1']],
     save_path: str = 'results/explain/subplot_num_nodes_subgraph.png',
-    kwargs: dict = {}
+    **kwargs: dict
 ) -> None:
     fig = plt.figure(figsize=(0.75+9.25*len(num_nodes_subgraph_dict), 8))
     num_subplots = len(num_nodes_subgraph_dict)
@@ -285,8 +289,146 @@ def subplot_num_nodes_subgraph(
     cbar_tick_label = [f'{x:.0%}' for x in cbar_tick_loc]
     cbar.ax.set_yticks(cbar_tick_loc[1:],
                         labels=cbar_tick_label[1:],
+                        rotation=-45,
                         minor=False)
     cbar.ax.set_ylabel(f'Coverage of Subgraph', size=30)
             
+    plt.savefig(save_path, dpi=300)
+    pass
+
+@plt.style.context('utils.small_fig')
+def subplot_loss_subgraph(
+    loss_subgraph_dict: dict[str, Annotated[torch.Tensor, 'num_nodes x diameter+1']],
+    save_path: str = 'results/explain/subplot_loss_subgraph.png',
+    **kwargs: dict
+) -> None:
+    fig = plt.figure(figsize=(0.75+9.25*len(loss_subgraph_dict), 8))
+    num_subplots = len(loss_subgraph_dict)
+    gspec = gridspec.GridSpec(nrows=1, ncols=num_subplots, figure=fig)
+    
+    im_axes = []
+    for i, (key, loss_subgraph) in enumerate(loss_subgraph_dict.items()):
+        mean = loss_subgraph.log().mean(dim=0).exp() # across nodes
+        quantiles = {
+            '1-sigma': {},
+            '2-sigma': {},
+            '3-sigma': {}
+        }
+        # 1-sigma quantiles, in between covers 68% of the data
+        lower_quantile = torch.quantile(loss_subgraph, 0.16, dim=0)
+        upper_quantile = torch.quantile(loss_subgraph, 0.84, dim=0)
+        quantiles['1-sigma']['lower'] = lower_quantile
+        quantiles['1-sigma']['upper'] = upper_quantile
+        
+        # 2-sigma quantiles, in between covers 95% of the data
+        lower_quantile = torch.quantile(loss_subgraph, 0.025, dim=0)
+        upper_quantile = torch.quantile(loss_subgraph, 0.975, dim=0)
+        quantiles['2-sigma']['lower'] = lower_quantile
+        quantiles['2-sigma']['upper'] = upper_quantile
+        
+        # 3-sigma quantiles, in between covers 99.7% of the data
+        lower_quantile = torch.quantile(loss_subgraph, 0.00135, dim=0)
+        upper_quantile = torch.quantile(loss_subgraph, 0.99865, dim=0)
+        quantiles['3-sigma']['lower'] = lower_quantile
+        quantiles['3-sigma']['upper'] = upper_quantile
+        
+        # transparencies for quantiles
+        quantiles['1-sigma']['alpha'] = 0.4
+        quantiles['2-sigma']['alpha'] = 0.2
+        quantiles['3-sigma']['alpha'] = 0.1
+        
+        ax = fig.add_subplot(gspec[0, i])
+        im_axes.append(ax)
+        ax.plot(range(mean.shape[0]), mean, color='C9', linewidth=2.5, **kwargs)
+        fill_between_handles = {key: None for key in quantiles.keys()}
+        fill_between_labels = {
+            '1-sigma': f'68%',
+            '2-sigma': f'95%',
+            '3-sigma': f'99.7%'
+        }
+        for quantile_key, quantile_values in quantiles.items():
+            lower_quantile = quantile_values['lower']
+            upper_quantile = quantile_values['upper']
+            alpha = quantile_values['alpha']
+            h = ax.fill_between(range(mean.shape[0]), 
+                             lower_quantile, upper_quantile, 
+                             alpha=alpha,
+                             color='C9',
+                             **kwargs)
+            fill_between_handles[quantile_key] = h
+        ax.set_xlim([0, mean.shape[0]-1])
+        ax.set_yscale('log')
+        # -- no title --
+        ax.set_xlabel(r'Subgraph Size ($k$-hop)')
+        if i == 0:
+            ax.set_ylabel('Loss')
+        if i == len(loss_subgraph_dict) - 1:
+            ax.legend(handles=[fill_between_handles[key] for key in quantiles.keys()], 
+                      labels=[fill_between_labels[key] for key in quantiles.keys()], 
+                      loc='upper right',
+                      title='Confidence Level',
+                      title_fontsize=30,
+                      fontsize=30)
+    
+    plt.savefig(save_path, dpi=300)
+    pass
+
+@plt.style.context('utils.small_fig')
+def subplot_loss_subgraph_per_node(
+    loss_subgraph_dict: dict[str, Annotated[torch.Tensor, 'num_nodes x diameter+1']],
+    save_path: str = 'results/explain/subplot_loss_subgraph_per_node.png',
+    **kwargs: dict
+) -> None:
+    # prepare for normalization in plotting
+    max_loss = max([loss_subgraph.max() for loss_subgraph in loss_subgraph_dict.values()])
+    min_loss = min([loss_subgraph.min() for loss_subgraph in loss_subgraph_dict.values()])
+    norm = mpl.colors.LogNorm(vmin=min_loss, vmax=max_loss)
+    
+    # mpl figure setup
+    num_subplots = len(loss_subgraph_dict)
+    im_cbar_width_ratio = 7
+    fig = plt.figure(figsize=(0.75+9.25*num_subplots, 8))
+    gspec = gridspec.GridSpec(nrows=1, ncols=im_cbar_width_ratio*num_subplots+1, figure=fig)
+    
+    im_axes = []
+    for subplot_idx, (case, loss_subgraph) in enumerate(loss_subgraph_dict.items()):
+        ax = fig.add_subplot(gspec[0, im_cbar_width_ratio*subplot_idx:im_cbar_width_ratio*(subplot_idx+1)])
+        im_axes.append(ax)
+        sorted, indices = torch.sort(loss_subgraph[:,1:].sum(dim=1))
+        # imshow
+        ax.imshow(loss_subgraph[indices], interpolation='nearest', aspect='auto',
+                   cmap='Blues', norm=norm) # TODO, use the same norm for all subplots
+        # xlabel
+        ax.set_xlabel(r'Subgraph Size ($k$-hop)')
+        xtick_loc = list(range(0, loss_subgraph.shape[1], 2))
+        # xticks, yticks
+        if loss_subgraph.shape[1] - 1 not in xtick_loc:
+            xtick_loc.append(loss_subgraph.shape[1] - 1)
+        xtick_label = xtick_loc
+        ax.set_xticks(xtick_loc,
+                        labels=xtick_label,
+                        minor=False)
+        ax.set_xticks(range(0, loss_subgraph.shape[1]), minor=True)
+        ytick_loc = np.linspace(0, loss_subgraph.shape[0]-1, 7, endpoint=True, dtype=int)
+        ytick_label = (ytick_loc+1).tolist()
+        ax.set_yticks(ytick_loc, ytick_label, minor=False)
+        # ylabel
+        if subplot_idx == 0:
+            ax.set_ylabel('Node Index')
+    
+    # last grid: colorbar
+    cbar_ax = fig.add_subplot(gspec[0, -1])
+    cbar = plt.colorbar(im_axes[subplot_idx].images[0], 
+                        cax=cbar_ax)
+    # TODO 
+    # cbar_tick_loc = np.linspace(0, 1, 6, endpoint=True).tolist()
+    # cbar_tick_label = [f'{x:.0%}' for x in cbar_tick_loc]
+    # cbar.ax.set_yticks(cbar_tick_loc[1:],
+    #                     labels=cbar_tick_label[1:],
+    #                     minor=False)
+    # yticks = cbar.ax.get_yticks()
+    # cbar.ax.set_yticks(yticks, rotation=-45, minor=False)
+    cbar.ax.set_ylabel(f'Loss', size=30)
+    
     plt.savefig(save_path, dpi=300)
     pass

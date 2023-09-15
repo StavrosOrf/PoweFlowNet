@@ -9,3 +9,4 @@ xtick.minor.visible: True
 ytick.labelsize: 30
 ytick.minor.visible: True
 image.cmap: Blues
+font.family: serif
