@@ -40,19 +40,6 @@ scenarios = [pp.networks.case14, pp.networks.case118, pp.networks.case6470rte]
 torch.manual_seed(42)
 np.random.seed(42)
 
-def get_line_z_pu(net):
-    r = net.line['r_ohm_per_km'].values * net.line['length_km'].values
-    x = net.line['x_ohm_per_km'].values * net.line['length_km'].values
-    from_bus = net.line['from_bus']
-    to_bus = net.line['to_bus']
-    vn_kv_to = net.bus['vn_kv'][to_bus].to_numpy()
-    # vn_kv_to = pd.Series(vn_kv_to)
-    zn = vn_kv_to**2 / net.sn_mva
-    r_pu = r/zn
-    x_pu = x/zn
-    
-    return r_pu, x_pu
-
 if GET_RESULTS:
 
     for scenario_index, case in enumerate(cases):
@@ -72,12 +59,15 @@ if GET_RESULTS:
         lines = net.line.values
         # print(net.line)
         print(f'Number of lines: {len(lines)}')
-        r_pu, x_pu = get_line_z_pu(net)     
+
         edgemean = testset.edgemean[0,:2].detach().cpu()
         edgestd = testset.edgestd[0,:2].detach().cpu()
+        
+        r_t = testset.edge_attr[:len(lines),0]        
+        x_t = testset.edge_attr[:len(lines),1]
 
-        r_pu = torch.tensor(r_pu) * edgestd[0] + edgemean[0]
-        x_pu = torch.tensor(x_pu) * edgestd[1] + edgemean[1]
+        r_t = r_t * edgestd[0] + edgemean[0]
+        x_t = x_t * edgestd[1] + edgemean[1]
 
         device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
         # device = torch.device("cuda:0")
@@ -155,31 +145,49 @@ if GET_RESULTS:
         # with open('./results/'+case_name+'_errors.npy', 'wb') as f:
         #     np.save(f, errors)
 
+        #print v_i max and min
+        print(f'v_i max: {torch.max(preds[:,:,0])}, v_i min: {torch.min(preds[:,:,0])}')
+        #print v_i targets max and min
+        print(f'v_i targets max: {torch.max(targets[:,:,0])}, v_i targets min: {torch.min(targets[:,:,0])}')
+        #print theta max and min
+        print(f'theta max: {torch.max(preds[:,:,1])}, theta min: {torch.min(preds[:,:,1])}')
+        #print theta targets max and min
+        print(f'theta targets max: {torch.max(targets[:,:,1])}, theta targets min: {torch.min(targets[:,:,1])}')
+        #print r max and min
+        print(f'r max: {torch.max(r_t)}, r min: {torch.min(r_t)}')
+        continue
+
         i_error_table = np.zeros((sample_number, len(lines)))
         for index, sample in enumerate(testset[:sample_number]):
             for lines_index, line in enumerate(lines):
                 i = line[2]
                 j = line[3]
 
-                r = r_pu[lines_index]
-                x = x_pu[lines_index]
+                r = r_t[lines_index]
+                x = x_t[lines_index]
+                
+                mp = math.pi/180
 
-                i_pred = math.sqrt((preds[index, i, 0] * math.cos(preds[index, i, 1]) -
-                                    preds[index, j, 0] * math.cos(preds[index, j, 1]))**2 +
-                                   (preds[index, i, 0] * math.sin(preds[index, i, 1]) -
-                                    preds[index, j, 0] * math.sin(preds[index, j, 1]))**2) \
+                print(f'v_i: {preds[index, i, 0]}, v_j: {preds[index, j, 0]}')
+                print(f'theta_i: {preds[index, i, 1]}, theta_j: {preds[index, j, 1]}')
+                print(f'r: {r}, x: {x}')
+
+                i_pred = math.sqrt((preds[index, i, 0] * math.cos(preds[index, i, 1] * mp) -
+                                    preds[index, j, 0] * math.cos(preds[index, j, 1] * mp))**2 +
+                                   (preds[index, i, 0] * math.sin(preds[index, i, 1] * mp) -
+                                    preds[index, j, 0] * math.sin(preds[index, j, 1] * mp))**2) \
                     / math.sqrt(r**2 + x**2)
 
-                i_r = math.sqrt((targets[index, i, 0] * math.cos(targets[index, i, 1]) -
-                                 targets[index, j, 0] * math.cos(targets[index, j, 1]))**2 +
-                                (targets[index, i, 0] * math.sin(targets[index, i, 1]) -
-                                 targets[index, j, 0] * math.sin(targets[index, j, 1]))**2) \
+                i_r = math.sqrt((targets[index, i, 0] * math.cos(targets[index, i, 1] * mp) -
+                                 targets[index, j, 0] * math.cos(targets[index, j, 1] * mp))**2 +
+                                (targets[index, i, 0] * math.sin(targets[index, i, 1] * mp) -
+                                 targets[index, j, 0] * math.sin(targets[index, j, 1] * mp))**2) \
                     / math.sqrt(r**2 + x**2)
 
                 i_error = (i_pred - i_r)
                 i_error_table[index, lines_index] = i_error
-                # print(f'i_pred: {i_pred}, i_r: {i_r}')
-                # print(f'error: {i_pred - i_r}')
+                print(f'i_pred: {i_pred}, i_r: {i_r}')
+                print(f'error: {i_pred - i_r}')
 
         print(f'i_error_table shape: {i_error_table.shape}')
         # print mean and std
