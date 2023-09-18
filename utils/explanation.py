@@ -22,6 +22,15 @@ import networkx as nx
 LOG_DIR = 'logs'
 SAVE_DIR = 'models'
 
+grid_case_print_names = {
+    '14v2': '14',
+    '14v3': '14',
+    '118v2': '118',
+    '118v3': '118',
+    '6470rtev2': '6470rte',
+    '6470rtev3': '6470rte',
+}
+
 @torch.no_grad() # TODO 
 def explain_epoch(
         model: nn.Module,
@@ -264,13 +273,17 @@ def subplot_num_nodes_subgraph(
     
     # first len(num_nodes_subgraph_dict) axes, plot imshow
     im_axes = []
-    for i, (key, num_nodes_subgraph) in enumerate(num_nodes_subgraph_dict.items()):
+    for i, (grid_case, num_nodes_subgraph) in enumerate(num_nodes_subgraph_dict.items()):
         ax = fig.add_subplot(gspec[0, im_cbar_width_ratio*i:im_cbar_width_ratio*(i+1)])
         im_axes.append(ax)
         sorted, indices = torch.sort(num_nodes_subgraph[:,1:].sum(dim=1))
         
         im_axes[i].imshow(num_nodes_subgraph[indices], interpolation='nearest', aspect='auto', **kwargs)
         xtick_loc = list(range(0, num_nodes_subgraph.shape[1], 2))
+        if num_nodes_subgraph.shape[1]-1 < 8:
+            xtick_loc = list(range(0, num_nodes_subgraph.shape[1], 2))
+        else:
+            xtick_loc = np.linspace(0, num_nodes_subgraph.shape[1]-1, 8, endpoint=True, dtype=int).tolist()
         if num_nodes_subgraph.shape[1] - 1 not in xtick_loc:
             xtick_loc.append(num_nodes_subgraph.shape[1] - 1)
         xtick_label = xtick_loc
@@ -281,7 +294,7 @@ def subplot_num_nodes_subgraph(
         ytick_loc = np.linspace(0, num_nodes_subgraph.shape[0]-1, 7, endpoint=True, dtype=int)
         ytick_label = (ytick_loc+1).tolist()
         im_axes[i].set_yticks(ytick_loc, ytick_label, minor=False)
-        im_axes[i].set_xlabel(r'Subgraph Size ($k$-hop)')
+        im_axes[i].set_xlabel(r'Subgraph Size ($k$-hop)'+f'\n Case {grid_case_print_names[grid_case]}')
         
         if i == 0:
             im_axes[i].set_ylabel('Node Index')
@@ -307,12 +320,17 @@ def subplot_loss_subgraph(
     save_path: str = 'results/explain/subplot_loss_subgraph.png',
     **kwargs: dict
 ) -> None:
+    # prepare for normalization in plotting
+    max_loss = max([loss_subgraph.max() for loss_subgraph in loss_subgraph_dict.values()])
+    min_loss = min([loss_subgraph.min() for loss_subgraph in loss_subgraph_dict.values()])
+    
+    # setup figure
     fig = plt.figure(figsize=(0.75+9.25*len(loss_subgraph_dict), 8))
     num_subplots = len(loss_subgraph_dict)
     gspec = gridspec.GridSpec(nrows=1, ncols=num_subplots, figure=fig)
     
     im_axes = []
-    for i, (key, loss_subgraph) in enumerate(loss_subgraph_dict.items()):
+    for i, (grid_case, loss_subgraph) in enumerate(loss_subgraph_dict.items()):
         mean = loss_subgraph.log().mean(dim=0).exp() # across nodes
         quantiles = {
             '1-sigma': {},
@@ -362,12 +380,14 @@ def subplot_loss_subgraph(
                              **kwargs)
             fill_between_handles[quantile_key] = h
         ax.set_xlim([0, mean.shape[0]-1])
+        ax.set_ylim([min_loss/3.16, max_loss*10**1.5])
         ax.set_yscale('log')
         # -- no title --
-        ax.set_xlabel(r'Subgraph Size ($k$-hop)')
+        ax.set_xlabel(r'Subgraph Size ($k$-hop)'+f'\n Case {grid_case_print_names[grid_case]}')
         if i == 0:
             ax.set_ylabel('Loss')
-        if i == len(loss_subgraph_dict) - 1:
+        if i == len(loss_subgraph_dict) - 1: # no, it's better in the last
+        # if i == 0: # it's better to put in the first subplot
             ax.legend(handles=[fill_between_handles[key] for key in quantiles.keys()], 
                       labels=[fill_between_labels[key] for key in quantiles.keys()], 
                       loc='upper right',
@@ -396,7 +416,7 @@ def subplot_loss_subgraph_per_node(
     gspec = gridspec.GridSpec(nrows=1, ncols=im_cbar_width_ratio*num_subplots+1, figure=fig)
     
     im_axes = []
-    for subplot_idx, (case, loss_subgraph) in enumerate(loss_subgraph_dict.items()):
+    for subplot_idx, (grid_case, loss_subgraph) in enumerate(loss_subgraph_dict.items()):
         ax = fig.add_subplot(gspec[0, im_cbar_width_ratio*subplot_idx:im_cbar_width_ratio*(subplot_idx+1)])
         im_axes.append(ax)
         sorted, indices = torch.sort(loss_subgraph[:,1:].sum(dim=1))
@@ -404,11 +424,13 @@ def subplot_loss_subgraph_per_node(
         ax.imshow(loss_subgraph[indices], interpolation='nearest', aspect='auto',
                    cmap='Blues', norm=norm) # TODO, use the same norm for all subplots
         # xlabel
-        ax.set_xlabel(r'Subgraph Size ($k$-hop)')
+        ax.set_xlabel(r'Subgraph Size ($k$-hop)'+f'\n Case {grid_case_print_names[grid_case]}')
         xtick_loc = list(range(0, loss_subgraph.shape[1], 2))
         # xticks, yticks
-        if loss_subgraph.shape[1] - 1 not in xtick_loc:
-            xtick_loc.append(loss_subgraph.shape[1] - 1)
+        if loss_subgraph.shape[1]-1 < 8:
+            xtick_loc = list(range(0, loss_subgraph.shape[1], 2))
+        else:
+            xtick_loc = np.linspace(0, loss_subgraph.shape[1]-1, 8, endpoint=True, dtype=int).tolist()
         xtick_label = xtick_loc
         ax.set_xticks(xtick_loc,
                         labels=xtick_label,
