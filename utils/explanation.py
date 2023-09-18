@@ -51,23 +51,28 @@ def explain_epoch(
 
     num_nodes, diameter, nx_G = get_graphinfo(loader.dataset[0]) # assume all samples have the same graph, look at the first sample
 
-    losses = torch.zeros((num_nodes, diameter+1))
+    num_node_sample = 350 # number of nodes to sample from the graph
+    if num_nodes > 1000:
+        sampled_nodes = np.random.choice(num_node_sample, 350, replace=False).tolist() # use these nodes as center to create subgraphs
+    else:
+        sampled_nodes = np.arange(num_nodes).tolist()
+    losses = torch.zeros((num_node_sample, diameter+1))
     # later will create one subgraph for each node. 
-    num_samples = torch.zeros((num_nodes, diameter+1)) # how many samples per subgraph are considered
-    subgraph_nnodes = torch.zeros((num_nodes, diameter+1)) # how many nodes are in each subgraph 
+    num_samples = torch.zeros((num_node_sample, diameter+1)) # how many samples per subgraph are considered
+    subgraph_nnodes = torch.zeros((num_node_sample, diameter+1)) # how many nodes are in each subgraph 
 
-    pbar = tqdm(loader, total=num_batches) # accepts batch_size >= 1
-    for batch_idx, data in enumerate(pbar):
+    for batch_idx, data in enumerate(loader):
         if batch_idx > num_batches:
             break
-
+        print(f'****** [Batch {batch_idx}]: ******')
         data = data.to(device)
 
         if num_nodes > 1000:
             sampled_nodes = np.random.choice(num_nodes, 350, replace=False).tolist() # use these nodes as center to create subgraphs
         else:
             sampled_nodes = np.arange(num_nodes).tolist()
-        for node_idx in sampled_nodes:
+        pbar = tqdm(sampled_nodes, total=len(sampled_nodes)) # accepts batch_size >= 1
+        for node_count, node_idx in enumerate(pbar):
             for m in range(0, diameter + 1):
                 # Step 0: make subgraph
                 bi_edge_index, bi_edge_attr = _make_bidirectional(data.edge_index, data.edge_attr)
@@ -89,11 +94,11 @@ def explain_epoch(
                 else:
                     loss = loss_fn(out[node_idx], data.y[node_idx])
 
-                losses[node_idx,m] += loss.item()*len(data) # accumulated across batches
-                num_samples[node_idx,m] += len(data) # += batch_size, count the total number of samples
+                losses[node_count,m] += loss.item()*len(data) # accumulated across batches
+                num_samples[node_count,m] += len(data) # += batch_size, count the total number of samples
                 if batch_idx == 0:
                     # print(n, m, node_subset)
-                    subgraph_nnodes[node_idx,m] += node_subset.shape[0]
+                    subgraph_nnodes[node_count,m] += node_subset.shape[0]
     
     # return: (1) loss averaged over samples (2) number of nodes in each subgraph 
     # (3) networkx graph of the first sample
