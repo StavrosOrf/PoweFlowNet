@@ -310,7 +310,7 @@ def subplot_num_nodes_subgraph(
                         labels=cbar_tick_label[1:],
                         rotation=-45,
                         minor=False)
-    cbar.ax.set_ylabel(f'Coverage of Subgraph', size=40)
+    cbar.ax.set_ylabel(f'Graph Coverage', size=40)
             
     plt.savefig(save_path, dpi=300)
     pass
