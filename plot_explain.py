@@ -33,7 +33,7 @@ def main():
             all_num_nodes_subgraph[grid_case] = num_nodes_subgraph/num_nodes_subgraph.max()
             all_loss_subgraph[grid_case] = loss_subgraph            
         except FileNotFoundError:
-            print('File not found. Please run without.')
+            print(f'File not found. run_id: {run_id}, grid_case: {grid_case}')
             return 1   
     
     # Plot
