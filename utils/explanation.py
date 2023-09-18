@@ -278,7 +278,7 @@ def subplot_num_nodes_subgraph(
         im_axes.append(ax)
         sorted, indices = torch.sort(num_nodes_subgraph[:,1:].sum(dim=1))
         
-        im_axes[i].imshow(num_nodes_subgraph[indices], interpolation='nearest', aspect='auto', **kwargs)
+        im_axes[i].imshow(num_nodes_subgraph[indices], interpolation='nearest', aspect='auto', rasterized=True, **kwargs)
         xtick_loc = list(range(0, num_nodes_subgraph.shape[1], 2))
         if num_nodes_subgraph.shape[1]-1 < 8:
             xtick_loc = list(range(0, num_nodes_subgraph.shape[1], 2))
@@ -422,7 +422,7 @@ def subplot_loss_subgraph_per_node(
         sorted, indices = torch.sort(loss_subgraph[:,1:].sum(dim=1))
         # imshow
         ax.imshow(loss_subgraph[indices], interpolation='nearest', aspect='auto',
-                   cmap='Blues', norm=norm) # TODO, use the same norm for all subplots
+                   cmap='Blues', norm=norm, rasterized=True, **kwargs) # TODO, use the same norm for all subplots
         # xlabel
         ax.set_xlabel(r'Subgraph Size ($k$-hop)'+f'\n Case {grid_case_print_names[grid_case]}')
         xtick_loc = list(range(0, loss_subgraph.shape[1], 2))

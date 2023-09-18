@@ -37,9 +37,9 @@ def main():
             return 1   
     
     # Plot
-    subplot_num_nodes_subgraph(all_num_nodes_subgraph, save_path=os.path.join(result_dir, 'subplot_num_nodes_subgraph'+'.png'))
-    subplot_loss_subgraph(all_loss_subgraph, save_path=os.path.join(result_dir, 'subplot_loss_subgraph'+'.png'))
-    subplot_loss_subgraph_per_node(all_loss_subgraph, save_path=os.path.join(result_dir, 'subplot_loss_subgraph_per_node'+'.png'))
+    subplot_num_nodes_subgraph(all_num_nodes_subgraph, save_path=os.path.join(result_dir, 'subplot_num_nodes_subgraph'+'.pdf'))
+    subplot_loss_subgraph(all_loss_subgraph, save_path=os.path.join(result_dir, 'subplot_loss_subgraph'+'.pdf'))
+    subplot_loss_subgraph_per_node(all_loss_subgraph, save_path=os.path.join(result_dir, 'subplot_loss_subgraph_per_node'+'.pdf'))
 
 if __name__ == '__main__':
     main()
