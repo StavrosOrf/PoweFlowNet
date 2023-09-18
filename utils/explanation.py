@@ -293,10 +293,12 @@ def subplot_num_nodes_subgraph(
         ytick_loc = np.linspace(0, num_nodes_subgraph.shape[0]-1, 7, endpoint=True, dtype=int)
         ytick_label = (ytick_loc+1).tolist()
         im_axes[i].set_yticks(ytick_loc, ytick_label, minor=False)
-        im_axes[i].set_xlabel(r'Subgraph Size ($k$-hop)'+f'\n Case {grid_case_print_names[grid_case]}')
+        im_axes[i].set_xlabel(r'Subgraph Size ($k$-hop)'+f'\n Case {grid_case_print_names[grid_case]}',
+                              fontsize=45)
         
         if i == 0:
-            im_axes[i].set_ylabel('Node Index')
+            im_axes[i].set_ylabel('Node Index',
+                                  fontsize=45)
     
     # last axes, plot colorbar
     cbar_ax = fig.add_subplot(gspec[0, -1])
@@ -308,7 +310,7 @@ def subplot_num_nodes_subgraph(
                         labels=cbar_tick_label[1:],
                         rotation=-45,
                         minor=False)
-    cbar.ax.set_ylabel(f'Coverage of Subgraph', size=30)
+    cbar.ax.set_ylabel(f'Coverage of Subgraph', size=40)
             
     plt.savefig(save_path, dpi=300)
     pass
@@ -386,23 +388,30 @@ def subplot_loss_subgraph(
         xtick_label = xtick_loc
         ax.set_xticks(xtick_loc,
                         labels=xtick_label,
-                        minor=False)
+                        minor=False,
+                        fontsize=35)
         ax.set_xticks(range(0, loss_subgraph.shape[1]), minor=True) 
         ax.set_xlim([0, mean.shape[0]-1])
         ax.set_ylim([min_loss/3.16, max_loss*10**1.5])
         ax.set_yscale('log')
         # -- no title --
-        ax.set_xlabel(r'Subgraph Size ($k$-hop)'+f'\n Case {grid_case_print_names[grid_case]}')
+        ax.set_xlabel(r'Subgraph Size ($k$-hop)'+f'\n Case {grid_case_print_names[grid_case]}',
+                      fontsize=44)
         if i == 0:
-            ax.set_ylabel('Loss')
-        if i == len(loss_subgraph_dict) - 1: # no, it's better in the last
+            ax.set_ylabel('Loss',
+                          fontsize=45)
+        plt.yticks(fontsize=35)
+        if i != 0:
+            ax.set_yticklabels([])
+
+        if i == 0: #len(loss_subgraph_dict) - 1: # no, it's better in the last
         # if i == 0: # it's better to put in the first subplot
             ax.legend(handles=[fill_between_handles[key] for key in quantiles.keys()], 
                       labels=[fill_between_labels[key] for key in quantiles.keys()], 
                       loc='upper right',
                       title='Confidence Level',
-                      title_fontsize=30,
-                      fontsize=30)
+                      title_fontsize=35,
+                      fontsize=35)
     
     plt.savefig(save_path, dpi=300)
     pass
@@ -433,7 +442,8 @@ def subplot_loss_subgraph_per_node(
         ax.imshow(loss_subgraph[indices], interpolation='nearest', aspect='auto',
                    cmap='Blues', norm=norm, rasterized=True, **kwargs) # TODO, use the same norm for all subplots
         # xlabel
-        ax.set_xlabel(r'Subgraph Size ($k$-hop)'+f'\n Case {grid_case_print_names[grid_case]}')
+        ax.set_xlabel(r'Subgraph Size ($k$-hop)'+f'\n Case {grid_case_print_names[grid_case]}',
+                      fontsize=45)
         # xticks, yticks
         if loss_subgraph.shape[1]-1 < 8:
             xtick_loc = list(range(0, loss_subgraph.shape[1], 2))
@@ -442,14 +452,15 @@ def subplot_loss_subgraph_per_node(
         xtick_label = xtick_loc
         ax.set_xticks(xtick_loc,
                         labels=xtick_label,
-                        minor=False)
+                        minor=False,
+                        fontsize=35)
         ax.set_xticks(range(0, loss_subgraph.shape[1]), minor=True)
         ytick_loc = np.linspace(0, loss_subgraph.shape[0]-1, 7, endpoint=True, dtype=int)
         ytick_label = (ytick_loc+1).tolist()
         ax.set_yticks(ytick_loc, ytick_label, minor=False)
         # ylabel
         if subplot_idx == 0:
-            ax.set_ylabel('Node Index')
+            ax.set_ylabel('Node Index',fontsize=45)
     
     # last grid: colorbar
     cbar_ax = fig.add_subplot(gspec[0, -1])
@@ -463,7 +474,7 @@ def subplot_loss_subgraph_per_node(
     #                     minor=False)
     # yticks = cbar.ax.get_yticks()
     # cbar.ax.set_yticks(yticks, rotation=-45, minor=False)
-    cbar.ax.set_ylabel(f'Loss', size=30)
+    cbar.ax.set_ylabel(f'Loss', size=40)
     
     plt.savefig(save_path, dpi=300)
     pass
