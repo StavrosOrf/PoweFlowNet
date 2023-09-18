@@ -279,7 +279,6 @@ def subplot_num_nodes_subgraph(
         sorted, indices = torch.sort(num_nodes_subgraph[:,1:].sum(dim=1))
         
         im_axes[i].imshow(num_nodes_subgraph[indices], interpolation='nearest', aspect='auto', rasterized=True, **kwargs)
-        xtick_loc = list(range(0, num_nodes_subgraph.shape[1], 2))
         if num_nodes_subgraph.shape[1]-1 < 8:
             xtick_loc = list(range(0, num_nodes_subgraph.shape[1], 2))
         else:
@@ -379,6 +378,16 @@ def subplot_loss_subgraph(
                              color='C9',
                              **kwargs)
             fill_between_handles[quantile_key] = h
+        # xticks, yticks
+        if loss_subgraph.shape[1]-1 < 8:
+            xtick_loc = list(range(0, loss_subgraph.shape[1], 2))
+        else:
+            xtick_loc = np.linspace(0, loss_subgraph.shape[1]-1, 8, endpoint=True, dtype=int).tolist()
+        xtick_label = xtick_loc
+        ax.set_xticks(xtick_loc,
+                        labels=xtick_label,
+                        minor=False)
+        ax.set_xticks(range(0, loss_subgraph.shape[1]), minor=True) 
         ax.set_xlim([0, mean.shape[0]-1])
         ax.set_ylim([min_loss/3.16, max_loss*10**1.5])
         ax.set_yscale('log')
@@ -425,7 +434,6 @@ def subplot_loss_subgraph_per_node(
                    cmap='Blues', norm=norm, rasterized=True, **kwargs) # TODO, use the same norm for all subplots
         # xlabel
         ax.set_xlabel(r'Subgraph Size ($k$-hop)'+f'\n Case {grid_case_print_names[grid_case]}')
-        xtick_loc = list(range(0, loss_subgraph.shape[1], 2))
         # xticks, yticks
         if loss_subgraph.shape[1]-1 < 8:
             xtick_loc = list(range(0, loss_subgraph.shape[1], 2))
