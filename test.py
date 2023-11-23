@@ -80,21 +80,6 @@ def main():
     for name, loss_fn in all_losses.items():
         test_loss = evaluate_epoch(model, test_loader, loss_fn, device)
         print(f"{name}:\t{test_loss:.4f}")
-
-    # sample = testset[10].to(device)
-
-    # out = model(sample)
-    
-    # out = out*sample.x[:,10:]
-    # input_x = sample.x[:,4:10]*sample.x[:,10:]
-    # # print(f"Input: {sample*testset.xystd + testset.xymean}")
-    # # print(f"Output: {out*testset.xystd + testset.xymean}")
-    
-    # for i in range(sample.x.shape[0]):
-    #     print("=====================================")
-    #     print(f"Actual: {input_x[i,:]}")
-    #     print(f"Predicted: {out[i,:]}")
-    #     print(f"Difference: {input_x[i,:] - out[i,:]}")
     
 
 
