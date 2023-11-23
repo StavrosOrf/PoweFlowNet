@@ -67,6 +67,15 @@ Raw data format:
 ### Citation
 
 If you use parts of this framework, datasets, or trained models, please cite as:
+
+@misc{lin2023powerflownet,
+      title={PowerFlowNet: Leveraging Message Passing GNNs for Improved Power Flow Approximation}, 
+      author={Nan Lin and Stavros Orfanoudakis and Nathan Ordonez Cardenas and Juan S. Giraldo and Pedro P. Vergara},
+      year={2023},
+      eprint={2311.03415},
+      archivePrefix={arXiv},
+      primaryClass={cs.LG}
+}
 ```
 TBA
 ```
