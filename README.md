@@ -1,16 +1,17 @@
-# PoweFlowNet
+# PowerFlowNet
 Leveraging Message Passing GNNs for High-Quality Power Flow Approximation.
 
+![image](https://github.com/StavrosOrf/PoweFlowNet/assets/17108978/1a6398c5-cac6-40cf-a3a1-0bc8fb66a0dc)
 
-![poweflownet_arch (1)](https://github.com/stavrosgreece/PoweFlowNet/assets/17108978/7ea2b68f-3aca-452c-a82a-b6614c70626f)
 
-PoweFlowNet's distinctiveness, compared to existing PF GNN approaches, lies in its adept utilization of the capabilities from message-passing GNNs and high-order GCNs in a unique arrangement called PoweFlowConv, for handling a trainable masked embedding of the network graph. This innovative approach renders PoweFlowNet remarkably scalable, presenting an effective solution for the PF problem.
+PowerFlowNet's distinctiveness, compared to existing PF GNN approaches, lies in its adept utilization of the capabilities from message-passing GNNs and high-order GCNs in a unique arrangement called PowerFlowConv, for handling a trainable masked embedding of the network graph. This innovative approach renders PoweFlowNet remarkably scalable, presenting an effective solution for the PF problem.
 
 ### Description
 
-PoweFlowNet transforms the PF into a GNN node-regression problem by representing each bus as a node and each transmission line as an edge while maintaining the network's connectivity.
+PowerFlowNet transforms the PF into a GNN node-regression problem by representing each bus as a node and each transmission line as an edge while maintaining the network's connectivity.
 
-![PowerFlowProblemFOrmulation](https://github.com/stavrosgreece/PoweFlowNet/assets/17108978/dc4c2570-7148-497a-a02b-f6c550ad8ce7)
+![image](https://github.com/StavrosOrf/PoweFlowNet/assets/17108978/3c3314c8-c111-41a7-8eb6-2116533f7f72)
+
 
 ### Instructions
 
