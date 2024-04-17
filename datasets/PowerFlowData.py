@@ -122,7 +122,7 @@ class PowerFlowData(InMemoryDataset):
         self.case = case  # THIS MUST BE EXECUTED BEFORE super().__init__() since it is used in raw_file_names and processed_file_names
         self.split = split
         self.task = task
-        super().__init__(root, transform, pre_transform, pre_filter)
+        super().__init__(root, transform, pre_transform, pre_filter) # self.process runs here
         self.mask = torch.tensor([])
         # assign mean,std if specified
         if xymean is not None and xystd is not None:
@@ -136,7 +136,7 @@ class PowerFlowData(InMemoryDataset):
         else:
             self.edgemean, self.edgestd = None, None
         self.data, self.slices, self.mask = self._normalize_dataset(
-            *torch.load(self.processed_paths[0]))  # necessary, do not forget!
+            *torch.load(self.processed_paths[self.split_order[self.task]]))  # necessary, do not forget!
 
     def get_data_dimensions(self):
         return self[0].x.shape[1], self[0].y.shape[1], self[0].edge_attr.shape[1]
@@ -202,7 +202,11 @@ class PowerFlowData(InMemoryDataset):
 
     @property
     def processed_file_names(self) -> List[str]:
-        return ["case"+f"{self.case}"+"_processed_data.pt"]
+        return [
+            "case"+f"{self.case}"+"_processed_train.pt",
+            "case"+f"{self.case}"+"_processed_val.pt",
+            "case"+f"{self.case}"+"_processed_test.pt",
+        ]
 
     def len(self):
         return self.slices['x'].shape[0]-1
@@ -214,41 +218,46 @@ class PowerFlowData(InMemoryDataset):
         # then use from_scipy_sparse_matrix()
         assert len(self.raw_paths) % 3 == 0
         raw_paths_per_case = [[self.raw_paths[i], self.raw_paths[i+1], self.raw_paths[i+2],] for i in range(0, len(self.raw_paths), 3)]
-        data_list = []
+        all_case_data = [[],[],[]]
         for case, raw_paths in enumerate(raw_paths_per_case):
-            # adj_mat = dense_to_sparse(torch.from_numpy(np.load(raw_paths[0])))
+            # process multiple cases (if specified) e.g. cases = [14, 118]
             edge_features = torch.from_numpy(np.load(raw_paths[0])).float()
             node_features_x = torch.from_numpy(np.load(raw_paths[1])).float()
             node_features_y = torch.from_numpy(np.load(raw_paths[2])).float()
 
+            assert self.split is not None
             if self.split is not None:
                 split_len = [int(len(node_features_x) * i) for i in self.split]
-                edge_features = torch.split(edge_features, split_len, dim=0)[
-                    self.split_order[self.task]]
-                node_features_x = torch.split(node_features_x, split_len, dim=0)[
-                    self.split_order[self.task]]
-                node_features_y = torch.split(node_features_y, split_len, dim=0)[
-                    self.split_order[self.task]]
-
-            per_case_data_list = [
-                Data(
-                    x=node_features_x[i],
-                    y=node_features_y[i],
-                    edge_index=edge_features[i, :, 0:2].T.to(torch.long)-1,
-                    edge_attr=edge_features[i, :, 2:],
-                ) for i in range(len(node_features_x))
-            ]
             
-            data_list.extend(per_case_data_list)
+            split_edge_features = torch.split(edge_features, split_len, dim=0)
+            split_node_features_x = torch.split(node_features_x, split_len, dim=0)
+            split_node_features_y = torch.split(node_features_y, split_len, dim=0)
+            
+            for idx in range(len(split_edge_features)):
+                # for each case, process train, val, test split
+                x = split_node_features_x[idx]
+                y = split_node_features_y[idx]
+                e = split_edge_features[idx]
+                data_list = [
+                    Data(
+                        x=x[i],
+                        y=y[i],
+                        edge_index=e[i, :, 0:2].T.to(torch.long)-1,
+                        edge_attr=e[i, :, 2:],
+                    ) for i in range(len(x))
+                ]
 
-        if self.pre_filter is not None:  # filter out some data
-            data_list = [data for data in data_list if self.pre_filter(data)]
+                if self.pre_filter is not None:  # filter out some data
+                    data_list = [data for data in data_list if self.pre_filter(data)]
 
-        if self.pre_transform is not None:
-            data_list = [self.pre_transform(data) for data in data_list]
+                if self.pre_transform is not None:
+                    data_list = [self.pre_transform(data) for data in data_list]
+                    
+                all_case_data[idx].extend(data_list)
 
-        data, slices = self.collate(data_list)
-        torch.save((data, slices), self.processed_paths[0])
+        for idx, case_data in enumerate(all_case_data):
+            data, slices = self.collate(case_data)
+            torch.save((data, slices), self.processed_paths[idx])
 
 
 def main():
