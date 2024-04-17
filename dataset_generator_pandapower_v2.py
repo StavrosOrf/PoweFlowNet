@@ -26,7 +26,7 @@ def create_case3():
     
     return net
 
-number_of_samples = 2000
+number_of_samples = 30000
 number_of_processes = 10
 
 parser = argparse.ArgumentParser(prog='Power Flow Data Generator', description='')
@@ -52,6 +52,8 @@ else:
     exit()
 if num_lines_to_remove > 0 or num_lines_to_add > 0:
     complete_case_name = 'case' + case + 'perturbed' + f'{num_lines_to_remove:1d}' + 'r' + f'{num_lines_to_add:1d}' + 'a'
+else:
+    complete_case_name = 'case' + case
 base_net = base_net_create()
 base_net.bus['name'] = base_net.bus.index
 print(base_net.bus)
@@ -83,8 +85,10 @@ def unify_vn(net):
 
 def get_trafo_z_pu(net):
     for trafo_id in net.trafo.index:
-        net.trafo['i0_percent'][trafo_id] = 0.
-        net.trafo['pfe_kw'][trafo_id] = 0.
+        # net.trafo['i0_percent'][trafo_id] = 0.
+        # net.trafo['pfe_kw'][trafo_id] = 0.
+        net.trafo[trafo_id, 'i0_percent'] = 0.
+        net.trafo[trafo_id, 'pfe_kw'] = 0.
     
     z_pu = net.trafo['vk_percent'].values / 100. * 1000. / net.sn_mva
     r_pu = net.trafo['vkr_percent'].values / 100. * 1000. / net.sn_mva
