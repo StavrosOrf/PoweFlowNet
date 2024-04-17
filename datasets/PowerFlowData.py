@@ -110,7 +110,11 @@ class PowerFlowData(InMemoryDataset):
                 transform: Optional[Callable] = None, 
                 pre_transform: Optional[Callable] = None, 
                 pre_filter: Optional[Callable] = None,
-                normalize=True):
+                normalize=True,
+                xymean=None,
+                xystd=None,
+                edgemean=None,
+                edgestd=None):
 
         assert len(split) == 3
         assert task in ["train", "val", "test"]
@@ -120,6 +124,17 @@ class PowerFlowData(InMemoryDataset):
         self.task = task
         super().__init__(root, transform, pre_transform, pre_filter)
         self.mask = torch.tensor([])
+        # assign mean,std if specified
+        if xymean is not None and xystd is not None:
+            self.xymean, self.xystd = xymean, xystd
+            print('xymean, xystd assigned.')
+        else:
+            self.xymean, self.xystd = None, None
+        if edgemean is not None and edgestd is not None:
+            self.edgemean, self.edgestd = edgemean, edgestd
+            print('edgemean, edgestd assigned.')
+        else:
+            self.edgemean, self.edgestd = None, None
         self.data, self.slices, self.mask = self._normalize_dataset(
             *torch.load(self.processed_paths[0]))  # necessary, do not forget!
 
@@ -130,11 +145,10 @@ class PowerFlowData(InMemoryDataset):
         assert self.normalize == True
         return self.xymean[:1, :], self.xystd[:1, :], self.edgemean[:1, :], self.edgestd[:1, :]
 
-    def _normalize_dataset(self, data, slices) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    def _normalize_dataset(self, data, slices, ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         if not self.normalize:
             # TODO an actual mask, perhaps never necessary though
             return data, slices, torch.tensor([])
-
         # selecting the right features
         # for x
         print(data.x.shape)
@@ -154,23 +168,21 @@ class PowerFlowData(InMemoryDataset):
 
         # normalizing
         # for node attributes
-        xy = torch.concat([data.x[:, 4:], data.y], dim=0)
-        # 6 for:
-        mean = torch.mean(xy, dim=0).unsqueeze(
-            dim=0).expand(data.x.shape[0], 6)
-        std = torch.std(xy, dim=0).unsqueeze(dim=0).expand(
-            data.x.shape[0], 6)  # Vm, Va, Pd, Qd, Gs, Bs
-        self.xymean, self.xystd = mean, std
-        # + 0.0000001 to avoid NaN's because of division by zero
-        data.x[:, 4:] = (data.x[:, 4:] - mean) / (std + 0.0000001)
-        data.y = (data.y - mean) / (std + 0.0000001)
+        if self.xymean is None or self.xystd is None:
+            xy = torch.concat([data.x[:, 4:], data.y], dim=0)
+            # 6 for:
+            mean = torch.mean(xy, dim=0, keepdim=True)
+            std = torch.std(xy, dim=0, keepdim=True)
+            self.xymean, self.xystd = mean, std
+            # + 0.0000001 to avoid NaN's because of division by zero
+        data.x[:, 4:] = (data.x[:, 4:] - self.xymean) / (self.xystd + 0.0000001)
+        data.y = (data.y - self.xymean) / (self.xystd + 0.0000001)
         # for edge attributes
-        mean = torch.mean(data.edge_attr, dim=0).unsqueeze(dim=0).expand(
-            data.edge_attr.shape[0], data.edge_attr.shape[1])
-        std = torch.std(data.edge_attr, dim=0).unsqueeze(dim=0).expand(
-            data.edge_attr.shape[0], data.edge_attr.shape[1])
-        self.edgemean, self.edgestd = mean, std
-        data.edge_attr = (data.edge_attr - mean) / (std + 0.0000001)
+        if self.edgemean is None or self.edgestd is None:
+            mean = torch.mean(data.edge_attr, dim=0, keepdim=True)
+            std = torch.std(data.edge_attr, dim=0, keepdim=True)
+            self.edgemean, self.edgestd = mean, std
+        data.edge_attr = (data.edge_attr - self.edgemean) / (self.edgestd + 0.0000001)
 
         # adding the mask
         # where x and y are unequal, the network must predict
