@@ -173,3 +173,6 @@ results/
 wandb/
 outtest.txt
 runs.bat
+
+# Dataset files
+data

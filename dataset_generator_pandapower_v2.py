@@ -52,6 +52,8 @@ else:
     exit()
 if num_lines_to_remove > 0 or num_lines_to_add > 0:
     complete_case_name = 'case' + case + 'perturbed' + f'{num_lines_to_remove:1d}' + 'r' + f'{num_lines_to_add:1d}' + 'a'
+else:
+    complete_case_name = 'case' + case
 base_net = base_net_create()
 base_net.bus['name'] = base_net.bus.index
 print(base_net.bus)
@@ -83,8 +85,10 @@ def unify_vn(net):
 
 def get_trafo_z_pu(net):
     for trafo_id in net.trafo.index:
-        net.trafo['i0_percent'][trafo_id] = 0.
-        net.trafo['pfe_kw'][trafo_id] = 0.
+        # net.trafo['i0_percent'][trafo_id] = 0.
+        # net.trafo['pfe_kw'][trafo_id] = 0.
+        net.trafo[trafo_id, 'i0_percent'] = 0.
+        net.trafo[trafo_id, 'pfe_kw'] = 0.
     
     z_pu = net.trafo['vk_percent'].values / 100. * 1000. / net.sn_mva
     r_pu = net.trafo['vkr_percent'].values / 100. * 1000. / net.sn_mva
@@ -111,7 +115,7 @@ def get_adjacency_matrix(net):
     
     return A
 
-def generate_data(sublist_size):
+def generate_data(sublist_size, rng):
     edge_features_list = []
     node_features_x_list = []
     node_features_y_list = []
@@ -142,21 +146,22 @@ def generate_data(sublist_size):
         Pd = net.load['p_mw'].values
         Qd = net.load['q_mvar'].values
 
-        r = np.random.uniform(0.8*r, 1.2*r, r.shape[0])
-        x = np.random.uniform(0.8*x, 1.2*x, x.shape[0])
+        # rng = np.random.default_rng()
+        r = rng.uniform(0.8*r, 1.2*r, r.shape[0])
+        x = rng.uniform(0.8*x, 1.2*x, x.shape[0])
         # c = np.random.uniform(0.8*c, 1.2*c, c.shape[0])
-        le = np.random.uniform(0.8*le, 1.2*le, le.shape[0])
+        le = rng.uniform(0.8*le, 1.2*le, le.shape[0])
         
         # tau = np.random.uniform(0.8*tau, 1.2*tau, case['branch'].shape[0])
         # angle = np.random.uniform(-0.2, 0.2, case['branch'].shape[0])
     
-        Vg = np.random.uniform(1.00, 1.05, net.gen['vm_pu'].shape[0])
-        Pg = np.random.normal(Pg, 0.1*np.abs(Pg), net.gen['p_mw'].shape[0])
+        Vg = rng.uniform(1.00, 1.05, net.gen['vm_pu'].shape[0])
+        Pg = rng.normal(Pg, 0.1*np.abs(Pg), net.gen['p_mw'].shape[0])
         
         # Pd = np.random.uniform(0.5*Pd, 1.5*Pd, net.load['p_mw'].shape[0])
-        Pd = np.random.normal(Pd, 0.1*np.abs(Pd), net.load['p_mw'].shape[0])
+        Pd = rng.normal(Pd, 0.1*np.abs(Pd), net.load['p_mw'].shape[0])
         # Qd = np.random.uniform(0.5*Qd, 1.5*Qd, net.load['q_mvar'].shape[0])
-        Qd = np.random.normal(Qd, 0.1*np.abs(Qd), net.load['q_mvar'].shape[0])
+        Qd = rng.normal(Qd, 0.1*np.abs(Qd), net.load['q_mvar'].shape[0])
         
         net.line['r_ohm_per_km'] = r 
         net.line['x_ohm_per_km'] = x 
@@ -255,8 +260,11 @@ def generate_data(sublist_size):
 
 def generate_data_parallel(num_samples, num_processes):
     sublist_size = num_samples // num_processes
+    parent_rng = np.random.default_rng(123456)
+    streams = parent_rng.spawn(num_processes)
     pool = mp.Pool(processes=num_processes)
-    results = pool.map(generate_data, [sublist_size]*num_processes)
+    args = [[sublist_size, st] for st in streams]
+    results = pool.starmap(generate_data, args)
     pool.close()
     pool.join()
     
