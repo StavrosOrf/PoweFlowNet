@@ -103,11 +103,12 @@ def main():
     
     # Step 2: Create model and optimizer (and scheduler)
     node_in_dim, node_out_dim, edge_dim = trainset.get_data_dimensions()
-    assert node_in_dim == 16
+    # assert node_in_dim == 16
+    assert node_in_dim == 4
     model = model(
-        nfeature_dim=nfeature_dim,
-        efeature_dim=efeature_dim,
-        output_dim=output_dim,
+        nfeature_dim=node_in_dim,
+        efeature_dim=edge_dim,
+        output_dim=node_out_dim,
         hidden_dim=hidden_dim,
         n_gnn_layers=n_gnn_layers,
         K=conv_K,

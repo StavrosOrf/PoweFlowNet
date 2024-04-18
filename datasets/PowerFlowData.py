@@ -14,63 +14,23 @@ import matplotlib.pyplot as plt
 
 from torch_geometric.datasets import Planetoid
 
-ori_feature_names_x = [
-    'index',                # - removed
-    'type',                 # --- one-hot encoded,  0, 1, 2, 3
-    'voltage magnitude',    # --- this matters,     4, 
-    'voltage angle',        # --- this matters,     5,
-    'Pd',                   # --- this matters, preprocessed as Pd-Pg   6,
-    'Qd',                   # --- this matters                          7,
-    'Gs',                   # - equivalent to Pd, Qd                    8,
-    'Bs',                   # - equivalent to Pd, Qd                    9,
-    'Pg'                    # - removed
+feature_names_from_files = [
+    'index',                # starting from 0 
+    'type',                 # 
+    'voltage magnitude',    # 
+    'voltage angle degree', # 
+    'Pd',                   # 
+    'Qd',                   # 
+    # 'Gs',                   # - equivalent to Pd, Qd                    8,
+    # 'Bs',                   # - equivalent to Pd, Qd                    9,
+    # 'Pg'                    # - removed
 ]
 
-feature_names_x = [
-    'type_0',               # --- one-hot encoded,  0,
-    'type_1',               # --- one-hot encoded,  1,
-    'type_2',               # --- one-hot encoded,  2,
-    'type_3',               # --- one-hot encoded,  3,
-    'voltage magnitude',    # --- this matters,     4, 
-    'voltage angle',        # --- this matters,     5,
-    'Pd',                   # --- this matters, preprocessed as Pd-Pg   6,
-    'Qd',                   # --- this matters                          7,
-    'Gs',                   # - equivalent to Pd, Qd                    8,
-    'Bs',                   # - equivalent to Pd, Qd                    9,
-    'to_predict_voltage_magnitude', #               10,
-    'to_predict_voltage_angle',     #               11,
-    'to_predict_Pd',                #               12,
-    'to_predict_Qd'                 #               13,
-    'to_predict_Gs',                #               14,
-    'to_predict_Bs'                 #               15,
-]
-
-ori_feature_names_y = [
-    'index',                # - removed
-    'type',                 # - removed
-    'voltage magnitude',    # --- we care about this
-    'voltage angle',        # --- we care about this
-    'active power',         # --- we care about this
-    'reactive power',       # --- we care about this
-    'Gs',                   # -
-    'Bs'                    # -
-]
-
-feature_names_y = [
-    'voltage magnitude',    # --- we care about this
-    'voltage angle',        # --- we care about this
-    'active power',         # --- we care about this
-    'reactive power',       # --- we care about this
-    'Gs',                   # -
-    'Bs'         
-]
-
-edge_feature_names = [
-    'r',                    # --- this matters, resistance, pu
-    'x',                    # --- this matters, reactance,  pu
-    'b',
-    'tau',
-    'angle'
+edge_feature_names_from_files = [
+    'from_bus',             # 
+    'to_bus',               #
+    'r pu',                 # 
+    'x pu',                 # 
 ]
         
 
@@ -89,8 +49,7 @@ class PowerFlowData(InMemoryDataset):
     """
     partial_file_names = [
         "edge_features.npy",
-        "node_features_x.npy",
-        "node_features_y.npy"
+        "node_features.npy",
     ]
     split_order = {
         "train": 0,
@@ -101,6 +60,10 @@ class PowerFlowData(InMemoryDataset):
         '118v2',
         '14v2',
     ]
+    slack_mask = (0, 0, 1, 1) # 1 = need to predict, 0 = no need to predict
+    gen_mask = (0, 1, 0, 1) 
+    load_mask = (1, 1, 0, 0)
+    bus_type_mask = (slack_mask, gen_mask, load_mask)
 
     def __init__(self, 
                 root: str, 
@@ -135,7 +98,7 @@ class PowerFlowData(InMemoryDataset):
             print('edgemean, edgestd assigned.')
         else:
             self.edgemean, self.edgestd = None, None
-        self.data, self.slices, self.mask = self._normalize_dataset(
+        self.data, self.slices = self._normalize_dataset(
             *torch.load(self.processed_paths[self.split_order[self.task]]))  # necessary, do not forget!
 
     def get_data_dimensions(self):
@@ -148,30 +111,17 @@ class PowerFlowData(InMemoryDataset):
     def _normalize_dataset(self, data, slices, ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         if not self.normalize:
             # TODO an actual mask, perhaps never necessary though
-            return data, slices, torch.tensor([])
-        # selecting the right features
-        data.x[:, 4] = data.x[:, 4] - data.x[:, 8]  # Pd = Pd - Pg
-        # + 4 for the one-hot encoding for four node types, -2 because we remove the index and Pg
-        template = torch.zeros((data.x.shape[0], data.x.shape[1] + 3 - 2))
-        template[:, 0:4] = torch.nn.functional.one_hot(
-            data.x[:, 1].type(torch.int64), num_classes=4)
-        template[:, 4:10] = data.x[:, 2:8]
-        data.x = template
-        # for y
-        data.y = data.y[:, 2:]
-
-        # SHAPE NOW: torch.Size([14, 10]) torch.Size([14, 6]) for x and y
+            return data, slices
 
         # normalizing
         # for node attributes
         if self.xymean is None or self.xystd is None:
-            xy = torch.concat([data.x[:, 4:], data.y], dim=0)
-            # 6 for:
+            xy = data.y # name 'xy' is from legacy. Shape (N, 4)
             mean = torch.mean(xy, dim=0, keepdim=True)
             std = torch.std(xy, dim=0, keepdim=True)
             self.xymean, self.xystd = mean, std
             # + 0.0000001 to avoid NaN's because of division by zero
-        data.x[:, 4:] = (data.x[:, 4:] - self.xymean) / (self.xystd + 0.0000001)
+        data.x = (data.x - self.xymean) / (self.xystd + 0.0000001)
         data.y = (data.y - self.xymean) / (self.xystd + 0.0000001)
         # for edge attributes
         if self.edgemean is None or self.edgestd is None:
@@ -180,14 +130,14 @@ class PowerFlowData(InMemoryDataset):
             self.edgemean, self.edgestd = mean, std
         data.edge_attr = (data.edge_attr - self.edgemean) / (self.edgestd + 0.0000001)
 
-        # adding the mask
+        # deprecated: adding the mask
         # where x and y are unequal, the network must predict
         # 1 where value changed, 0 where it did not change
-        unequal = (data.x[:, 4:] != data.y).float()
-        data.prediction_mask = unequal
-        data.x = torch.concat([data.x, unequal], dim=1)
+        # unequal = (data.x[:, 4:] != data.y).float()
+        # data.prediction_mask = unequal
+        # data.x = torch.concat([data.x, unequal], dim=1)
 
-        return data, slices, unequal
+        return data, slices
 
     @property
     def raw_file_names(self) -> List[str]:
@@ -212,33 +162,36 @@ class PowerFlowData(InMemoryDataset):
 
     def process(self):
         # then use from_scipy_sparse_matrix()
-        assert len(self.raw_paths) % 3 == 0
-        raw_paths_per_case = [[self.raw_paths[i], self.raw_paths[i+1], self.raw_paths[i+2],] for i in range(0, len(self.raw_paths), 3)]
+        assert len(self.raw_paths) % 2 == 0
+        raw_paths_per_case = [[self.raw_paths[i], self.raw_paths[i+1],] for i in range(0, len(self.raw_paths), 2)]
         all_case_data = [[],[],[]]
         for case, raw_paths in enumerate(raw_paths_per_case):
             # process multiple cases (if specified) e.g. cases = [14, 118]
             edge_features = torch.from_numpy(np.load(raw_paths[0])).float()
-            node_features_x = torch.from_numpy(np.load(raw_paths[1])).float()
-            node_features_y = torch.from_numpy(np.load(raw_paths[2])).float()
+            node_features = torch.from_numpy(np.load(raw_paths[1])).float()
 
             assert self.split is not None
             if self.split is not None:
-                split_len = [int(len(node_features_x) * i) for i in self.split]
+                split_len = [int(len(node_features) * i) for i in self.split]
             
             split_edge_features = torch.split(edge_features, split_len, dim=0)
-            split_node_features_x = torch.split(node_features_x, split_len, dim=0)
-            split_node_features_y = torch.split(node_features_y, split_len, dim=0)
+            split_node_features = torch.split(node_features, split_len, dim=0)
             
             for idx in range(len(split_edge_features)):
+                # shape of element in split_xx: [N, n_edges/n_nodes, n_features]
                 # for each case, process train, val, test split
-                x = split_node_features_x[idx]
-                y = split_node_features_y[idx]
-                e = split_edge_features[idx]
+                y = split_node_features[idx][:, :, 2:] # shape (N, n_ndoes, 4); Vm, Va, P, Q
+                bus_type = split_node_features[idx][:, :, 1].type(torch.long) # shape (N, n_nodes)
+                bus_type_mask = torch.tensor(self.bus_type_mask)[bus_type] # shape (N, n_nodes, 4)
+                x = y.clone()*(1.-bus_type_mask) # shape (N, n_nodes, 4)
+                e = split_edge_features[idx] # shape (N, n_edges, 4)
                 data_list = [
                     Data(
                         x=x[i],
                         y=y[i],
-                        edge_index=e[i, :, 0:2].T.to(torch.long)-1,
+                        bus_type=bus_type[i],
+                        pred_mask=bus_type_mask[i],
+                        edge_index=e[i, :, 0:2].T.to(torch.long),
                         edge_attr=e[i, :, 2:],
                     ) for i in range(len(x))
                 ]
