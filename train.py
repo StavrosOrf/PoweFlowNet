@@ -76,6 +76,15 @@ def main():
     trainset = PowerFlowData(root=data_dir, case=grid_case, split=[.5, .2, .3], task='train', normalize=nomalize_data)
     valset = PowerFlowData(root=data_dir, case=grid_case, split=[.5, .2, .3], task='val', normalize=nomalize_data)
     testset = PowerFlowData(root=data_dir, case=grid_case, split=[.5, .2, .3], task='test', normalize=nomalize_data)
+    
+    # save normalizing params
+    os.makedirs(os.path.join(data_dir, 'params'), exist_ok=True)
+    torch.save({
+            'xymean': trainset.xymean,
+            'xystd': trainset.xystd,
+            'edgemean': trainset.edgemean,
+            'edgestd': trainset.edgestd,
+        }, os.path.join(data_dir, 'params', f'data_params_{run_id}.pt'))
         
     train_loader = DataLoader(trainset, batch_size=batch_size, shuffle=True)
     val_loader = DataLoader(valset, batch_size=batch_size, shuffle=False)
