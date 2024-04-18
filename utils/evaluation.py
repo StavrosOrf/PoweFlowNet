@@ -77,12 +77,12 @@ def evaluate_epoch(
         out = model(data)
 
         if isinstance(loss_fn, Masked_L2_loss):
-            loss = loss_fn(out, data.y, data.x[:, 10:])
+            loss = loss_fn(out, data.y, data.pred_mask)
         elif isinstance(loss_fn, PowerImbalance):
             # have to mask out the non-predicted values, otherwise
             #   the network can learn to predict full-zeros
-            masked_out = out*data.x[:, 10:] \
-                        + data.x[:, 4:10]*(1-data.x[:, 10:])
+            masked_out = out*data.pred_mask \
+                        + data.pred_mask*(1-data.pred_mask)
             loss = loss_fn(masked_out, data.edge_index, data.edge_attr)
             # loss = loss_fn(data.y, data.edge_index, data.edge_attr)
         elif isinstance(loss_fn, MixedMSEPoweImbalance):
@@ -123,15 +123,15 @@ def evaluate_epoch_v2(
         out = model(data)
 
         if isinstance(loss_fn, Masked_L2_loss):
-            loss = loss_fn(out, data.y, data.x[:, 10:])
+            loss = loss_fn(out, data.y, data.pred_mask)
             loss_terms['total'] = loss
         elif isinstance(loss_fn, MaskedL2V2):
-            loss_terms = loss_fn(out, data.y, data.x[:, 10:])
+            loss_terms = loss_fn(out, data.y, data.pred_mask)
         elif isinstance(loss_fn, PowerImbalance):
             # have to mask out the non-predicted values, otherwise
             #   the network can learn to predict full-zeros
-            masked_out = out*data.x[:, 10:] \
-                        + data.x[:, 4:10]*(1-data.x[:, 10:])
+            masked_out = out*data.pred_mask \
+                        + data.x*(1-data.pred_mask)
             loss = loss_fn(masked_out, data.edge_index, data.edge_attr)
             loss_terms['total'] = loss
             # loss = loss_fn(data.y, data.edge_index, data.edge_attr)
