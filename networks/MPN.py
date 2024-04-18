@@ -435,10 +435,12 @@ class MaskEmbdMultiMPN(nn.Module):
             return edge_index, edge_attr
     
     def forward(self, data):
-        assert data.x.shape[-1] == self.nfeature_dim * 2 + 4 # features and their mask + one-hot node type embedding
-        x = data.x[:, 4:4+self.nfeature_dim] # first four features: node type. not elegant at all this way. just saying. 
+        # assert data.x.shape[-1] == self.nfeature_dim * 2 + 4 # features and their mask + one-hot node type embedding
+        # x = data.x[:, 4:4+self.nfeature_dim] # first four features: node type. not elegant at all this way. just saying. 
+        assert data.x.shape[-1] == 4
+        x = data.x # (N, 4)
         input_x = x # problem if there is inplace operation on x, so pay attention
-        mask = data.x[:, -self.nfeature_dim:]# last few dimensions: mask.
+        mask = data.pred_mask.float() # indicating which features to predict (==1)
         edge_index = data.edge_index
         edge_features = data.edge_attr
                 
