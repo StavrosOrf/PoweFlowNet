@@ -22,7 +22,7 @@ SAVE_DIR = 'models'
 
 @torch.no_grad()
 def main():
-    run_id = '20240417-4378'
+    run_id = '20240418-842'
     # logging.basicConfig(filename=f'test_{run_id}.log', level=100)
     models = {
         'MPN': MPN,
@@ -74,9 +74,9 @@ def main():
 
     node_in_dim, node_out_dim, edge_dim = testset.get_data_dimensions()
     model = model(
-        nfeature_dim=nfeature_dim,
-        efeature_dim=efeature_dim,
-        output_dim=output_dim,
+        nfeature_dim=node_in_dim,
+        efeature_dim=edge_dim,
+        output_dim=node_out_dim,
         hidden_dim=hidden_dim,
         n_gnn_layers=n_gnn_layers,
         K=conv_K,
