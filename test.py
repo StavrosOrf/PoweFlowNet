@@ -23,7 +23,7 @@ SAVE_DIR = 'models'
 @torch.no_grad()
 def main():
     run_id = '20240417-4378'
-    logging.basicConfig(filename=f'test_{run_id}.log', level=100)
+    # logging.basicConfig(filename=f'test_{run_id}.log', level=100)
     models = {
         'MPN': MPN,
         'MPN_simplenet': MPN_simplenet,
