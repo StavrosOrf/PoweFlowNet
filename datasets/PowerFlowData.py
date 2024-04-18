@@ -150,10 +150,6 @@ class PowerFlowData(InMemoryDataset):
             # TODO an actual mask, perhaps never necessary though
             return data, slices, torch.tensor([])
         # selecting the right features
-        # for x
-        print(data.x.shape)
-        print(data)
-        # exit()
         data.x[:, 4] = data.x[:, 4] - data.x[:, 8]  # Pd = Pd - Pg
         # + 4 for the one-hot encoding for four node types, -2 because we remove the index and Pg
         template = torch.zeros((data.x.shape[0], data.x.shape[1] + 3 - 2))
