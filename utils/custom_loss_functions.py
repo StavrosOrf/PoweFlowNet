@@ -45,7 +45,25 @@ class Masked_L2_loss(nn.Module):
 
         return loss
     
-    
+class MaskedL2V2(nn.Module):
+    """
+    Args:
+        - regularize (bool): not used
+        - regcoeff (float): not used
+    """
+    def __init__(self, regularize=False, regcoeff=1):
+        super(MaskedL2V2, self).__init__()
+        
+    def forward(self, output, target, mask):
+        " output.shape == target.shape == mask.shape == [N, F]"
+        print(output.shape)
+        exit()
+        error = F.mse_loss(output, target, reduction='none') # (N, F)
+        error = (error * mask.float()).sum(dim=0) / mask.sum(dim=0).clamp(min=1e-6) # (F,)
+        
+        loss_terms = {}
+        loss_terms['total'] = error.mean()
+        
 
 class PowerImbalance(MessagePassing):
     """Power Imbalance Loss Class
