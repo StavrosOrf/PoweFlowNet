@@ -55,15 +55,29 @@ class MaskedL2V2(nn.Module):
         super(MaskedL2V2, self).__init__()
         
     def forward(self, output, target, mask):
-        " output.shape == target.shape == mask.shape == [N, F]"
-        print(output.shape)
-        exit()
+        """ output.shape == target.shape == mask.shape == [N, F]
+        ---
+        F == 6 for legacy version. 
+        
+        F_0: vm
+        F_1: va_degree
+        F_2: Pd
+        F_3: Qd
+        F_4: ?
+        F_5: ?
+        
+        """
         error = F.mse_loss(output, target, reduction='none') # (N, F)
         error = (error * mask.float()).sum(dim=0) / mask.sum(dim=0).clamp(min=1e-6) # (F,)
-        
         loss_terms = {}
-        loss_terms['total'] = error.mean()
+        loss_terms['total'] = (error * mask.sum(dim=0).clamp(min=1e-6)).sum() / mask.sum().clamp(min=1e-6) # mean of all prediction
+        loss_terms['balanced total'] = error.mean() # mean of the average error of each feature
+        loss_terms['vm'] = error[0]
+        loss_terms['va'] = error[1]
+        loss_terms['p'] = error[2]
+        loss_terms['q'] = error[3]
         
+        return loss_terms
 
 class PowerImbalance(MessagePassing):
     """Power Imbalance Loss Class
