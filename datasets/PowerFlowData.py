@@ -122,6 +122,8 @@ class PowerFlowData(InMemoryDataset):
         self.mask = torch.tensor([])
         self.data, self.slices, self.mask = self._normalize_dataset(
             *torch.load(self.processed_paths[0]))  # necessary, do not forget!
+        
+        
 
     def get_data_dimensions(self):
         return self[0].x.shape[1], self[0].y.shape[1], self[0].edge_attr.shape[1]
@@ -137,8 +139,6 @@ class PowerFlowData(InMemoryDataset):
 
         # selecting the right features
         # for x
-        print(data.x.shape)
-        print(data)
         # exit()
         data.x[:, 4] = data.x[:, 4] - data.x[:, 8]  # Pd = Pd - Pg
         # + 4 for the one-hot encoding for four node types, -2 because we remove the index and Pg

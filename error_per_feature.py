@@ -15,6 +15,8 @@ import pandapower as pp
 
 from datasets.PowerFlowData import PowerFlowData
 from networks.MPN import MaskEmbdMultiMPN
+from networks.GCN import GCN
+from networks.MLP import MLP
 from utils.custom_loss_functions import Masked_L2_loss
 
 LOG_DIR = 'logs'
@@ -33,7 +35,7 @@ feature_names_output = [
 
 GET_RESULTS = True
 sample_number = 2000  # 00000
-cases = ['case14', 'case118']#, 'case6470rte']
+cases = ['case14', 'case118','case6470rte']
 scenarios = [pp.networks.case14, pp.networks.case118, pp.networks.case6470rte]
 # cases = ['case14']
 
@@ -90,6 +92,28 @@ if GET_RESULTS:
         _to_load = torch.load(model_path, map_location=device)
         MPN_model.load_state_dict(_to_load['model_state_dict'])
         MPN_model.eval()
+        
+        model_path = "./models/testing/mlp_" + case_name + ".pt"
+
+        num_inputs = testset[0].x.shape[0] * testset[0].x.shape[1]
+        num_outputs = testset[0].y.shape[0] * testset[0].y.shape[1]
+
+        print(f'Number of inputs: {num_inputs}| Number of outputs: {num_outputs}')
+
+        device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        MLP_model = MLP(num_inputs, num_outputs, 128, 3, 0.2)
+        MLP_model.to(device)
+        MLP_model.load_state_dict(torch.load(model_path, map_location=device)['model_state_dict'])
+        MLP_model.eval()
+        
+        GCN_model = GCN(nfeature_dim=16,
+                    output_dim=6,
+                    hidden_dim=129).to(device)
+        
+        model_path = "./models/testing/gcn_" + case_name + ".pt"
+        _to_load = torch.load(model_path, map_location=device)
+        GCN_model.load_state_dict(_to_load['model_state_dict'])
+        GCN_model.eval()
 
         # Get loss of MPN model and execution time
         timer_MPN = 0
@@ -102,7 +126,9 @@ if GET_RESULTS:
 
         for i, sample in enumerate(testset[:sample_number]):
             time_start_gnn = time.time()
-            result = MPN_model(sample.to(device))
+            # result = MPN_model(sample.to(device))
+            # result = MLP_model(sample.to(device))
+            result = GCN_model(sample.to(device))
             # print(sample.x,result)
             # exit()
             preds.append(result.detach().cpu())
@@ -138,12 +164,12 @@ if GET_RESULTS:
         print(f'types shape: {types.shape}')
         print(f'error shape: {errors.shape}')
 
-        # with open('./results/'+case_name+'_masks.npy', 'wb') as f:
-        #     np.save(f, masks)
-        # with open('./results/'+case_name+'_types.npy', 'wb') as f:
-        #     np.save(f, types)
-        # with open('./results/'+case_name+'_errors.npy', 'wb') as f:
-        #     np.save(f, errors)
+        with open('./results/'+case_name+'_masks.npy', 'wb') as f:
+            np.save(f, masks)
+        with open('./results/'+case_name+'_types.npy', 'wb') as f:
+            np.save(f, types)
+        with open('./results/'+case_name+'_errors.npy', 'wb') as f:
+            np.save(f, errors)
 
         #print v_i max and min
         print(f'v_i max: {torch.max(preds[:,:,0])}, v_i min: {torch.min(preds[:,:,0])}')
@@ -155,48 +181,48 @@ if GET_RESULTS:
         print(f'theta targets max: {torch.max(targets[:,:,1])}, theta targets min: {torch.min(targets[:,:,1])}')
         #print r max and min
         print(f'r max: {torch.max(r_t)}, r min: {torch.min(r_t)}')
-        continue
+        # continue
 
-        i_error_table = np.zeros((sample_number, len(lines)))
-        for index, sample in enumerate(testset[:sample_number]):
-            for lines_index, line in enumerate(lines):
-                i = line[2]
-                j = line[3]
+        # i_error_table = np.zeros((sample_number, len(lines)))
+        # for index, sample in enumerate(testset[:sample_number]):
+        #     for lines_index, line in enumerate(lines):
+        #         i = line[2]
+        #         j = line[3]
 
-                r = r_t[lines_index]
-                x = x_t[lines_index]
+        #         r = r_t[lines_index]
+        #         x = x_t[lines_index]
                 
-                mp = math.pi/180
+        #         mp = math.pi/180
 
-                print(f'v_i: {preds[index, i, 0]}, v_j: {preds[index, j, 0]}')
-                print(f'theta_i: {preds[index, i, 1]}, theta_j: {preds[index, j, 1]}')
-                print(f'r: {r}, x: {x}')
+        #         print(f'v_i: {preds[index, i, 0]}, v_j: {preds[index, j, 0]}')
+        #         print(f'theta_i: {preds[index, i, 1]}, theta_j: {preds[index, j, 1]}')
+        #         print(f'r: {r}, x: {x}')
 
-                i_pred = math.sqrt((preds[index, i, 0] * math.cos(preds[index, i, 1] * mp) -
-                                    preds[index, j, 0] * math.cos(preds[index, j, 1] * mp))**2 +
-                                   (preds[index, i, 0] * math.sin(preds[index, i, 1] * mp) -
-                                    preds[index, j, 0] * math.sin(preds[index, j, 1] * mp))**2) \
-                    / math.sqrt(r**2 + x**2)
+        #         i_pred = math.sqrt((preds[index, i, 0] * math.cos(preds[index, i, 1] * mp) -
+        #                             preds[index, j, 0] * math.cos(preds[index, j, 1] * mp))**2 +
+        #                            (preds[index, i, 0] * math.sin(preds[index, i, 1] * mp) -
+        #                             preds[index, j, 0] * math.sin(preds[index, j, 1] * mp))**2) \
+        #             / math.sqrt(r**2 + x**2)
 
-                i_r = math.sqrt((targets[index, i, 0] * math.cos(targets[index, i, 1] * mp) -
-                                 targets[index, j, 0] * math.cos(targets[index, j, 1] * mp))**2 +
-                                (targets[index, i, 0] * math.sin(targets[index, i, 1] * mp) -
-                                 targets[index, j, 0] * math.sin(targets[index, j, 1] * mp))**2) \
-                    / math.sqrt(r**2 + x**2)
+        #         i_r = math.sqrt((targets[index, i, 0] * math.cos(targets[index, i, 1] * mp) -
+        #                          targets[index, j, 0] * math.cos(targets[index, j, 1] * mp))**2 +
+        #                         (targets[index, i, 0] * math.sin(targets[index, i, 1] * mp) -
+        #                          targets[index, j, 0] * math.sin(targets[index, j, 1] * mp))**2) \
+        #             / math.sqrt(r**2 + x**2)
 
-                i_error = (i_pred - i_r)
-                i_error_table[index, lines_index] = i_error
-                print(f'i_pred: {i_pred}, i_r: {i_r}')
-                print(f'error: {i_pred - i_r}')
+        #         i_error = (i_pred - i_r)
+        #         i_error_table[index, lines_index] = i_error
+        #         print(f'i_pred: {i_pred}, i_r: {i_r}')
+        #         print(f'error: {i_pred - i_r}')
 
-        print(f'i_error_table shape: {i_error_table.shape}')
-        # print mean and std
-        print(f'i_error_table mean: {np.mean(np.abs(i_error_table))}')
-        print(f'i_error_table std: {np.std(np.abs(i_error_table))}')
-        with open('./results/'+case_name+'_i_error_table.npy', 'wb') as f:
-            np.save(f, i_error_table)
+        # print(f'i_error_table shape: {i_error_table.shape}')
+        # # print mean and std
+        # print(f'i_error_table mean: {np.mean(np.abs(i_error_table))}')
+        # print(f'i_error_table std: {np.std(np.abs(i_error_table))}')
+#         with open('./results/'+case_name+'_i_error_table.npy', 'wb') as f:
+#             np.save(f, i_error_table)
 
-exit()
+# exit()
 
 # Plot results
 # cases = ['case14']
