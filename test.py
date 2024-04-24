@@ -1,17 +1,21 @@
 import os
+import logging
+from functools import partial
 
 import torch
 import torch_geometric
 
-from datasets.PowerFlowData import PowerFlowData
+from datasets.PowerFlowData import PowerFlowData, denormalize
 from networks.MPN import MPN, MPN_simplenet, SkipMPN, MaskEmbdMPN, MultiConvNet, MultiMPN, MaskEmbdMultiMPN
 from utils.evaluation import load_model
 
 from torch_geometric.loader import DataLoader
-from utils.evaluation import evaluate_epoch
+from utils.evaluation import evaluate_epoch, evaluate_epoch_v2
 from utils.argument_parser import argument_parser
 
-from utils.custom_loss_functions import Masked_L2_loss, PowerImbalance, MixedMSEPoweImbalance
+from utils.custom_loss_functions import Masked_L2_loss, PowerImbalance, MixedMSEPoweImbalance, MaskedL2V2, MaskedL1
+
+logger = logging.getLogger(__name__)
 
 LOG_DIR = 'logs'
 SAVE_DIR = 'models'
@@ -19,7 +23,8 @@ SAVE_DIR = 'models'
 
 @torch.no_grad()
 def main():
-    run_id = '20230627-9288'
+    run_id = '20240422-1660'
+    # logging.basicConfig(filename=f'test_{run_id}.log', level=100)
     models = {
         'MPN': MPN,
         'MPN_simplenet': MPN_simplenet,
@@ -70,9 +75,9 @@ def main():
 
     node_in_dim, node_out_dim, edge_dim = testset.get_data_dimensions()
     model = model(
-        nfeature_dim=nfeature_dim,
-        efeature_dim=efeature_dim,
-        output_dim=output_dim,
+        nfeature_dim=node_in_dim,
+        efeature_dim=edge_dim,
+        output_dim=node_out_dim,
         hidden_dim=hidden_dim,
         n_gnn_layers=n_gnn_layers,
         K=conv_K,
@@ -84,9 +89,22 @@ def main():
     
     print(f"Model: {args.model}")
     print(f"Case: {grid_case}")
+    
+    _loss = MaskedL2V2()
+    masked_l2_terms = evaluate_epoch_v2(model, test_loader, _loss, device)
+    for key, value in masked_l2_terms.items():
+        print(f"MaskedL2 {key}:\t{value:.4f}")
+    masked_l2_terms_de = evaluate_epoch_v2(model, test_loader, _loss, 
+                                           pre_loss_fn=partial(denormalize, mean=xymean, std=xystd), device=device)
+    for key, value in masked_l2_terms_de.items():
+        print(f"MaskedL2 {key}:\t{value:.4f}")
+    masked_l1_terms_de = evaluate_epoch_v2(model, test_loader, MaskedL1(), 
+                                           pre_loss_fn=partial(denormalize, mean=xymean, std=xystd), device=device)
+    for key, value in masked_l1_terms_de.items():
+        print(f"MaskedL1 {key}:\t{value:.4f}")
     for name, loss_fn in all_losses.items():
-        test_loss = evaluate_epoch(model, test_loader, loss_fn, device)
-        print(f"{name}:\t{test_loss:.4f}")
+        test_loss_terms = evaluate_epoch_v2(model, test_loader, loss_fn, device)
+        print(f"{name}:\t{test_loss_terms['total']:.4f}")
     
 
 

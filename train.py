@@ -8,7 +8,7 @@ from torch_geometric.loader import DataLoader
 
 from tqdm import tqdm
 
-from datasets.PowerFlowData import PowerFlowData
+from datasets.PowerFlowData import PowerFlowData, random_bus_type
 from networks.MPN import MPN, MPN_simplenet, SkipMPN, MaskEmbdMPN, MultiConvNet, MultiMPN, MaskEmbdMultiMPN
 from utils.argument_parser import argument_parser
 from utils.training import train_epoch, append_to_json
@@ -73,7 +73,8 @@ def main():
     # torch.backends.cudnn.benchmark = False
 
     # Step 1: Load data
-    trainset = PowerFlowData(root=data_dir, case=grid_case, split=[.5, .2, .3], task='train', normalize=nomalize_data)
+    trainset = PowerFlowData(root=data_dir, case=grid_case, split=[.5, .2, .3], task='train', normalize=nomalize_data,
+                             transform=random_bus_type)
     valset = PowerFlowData(root=data_dir, case=grid_case, split=[.5, .2, .3], task='val', normalize=nomalize_data)
     testset = PowerFlowData(root=data_dir, case=grid_case, split=[.5, .2, .3], task='test', normalize=nomalize_data)
     
@@ -103,11 +104,12 @@ def main():
     
     # Step 2: Create model and optimizer (and scheduler)
     node_in_dim, node_out_dim, edge_dim = trainset.get_data_dimensions()
-    assert node_in_dim == 16
+    # assert node_in_dim == 16
+    assert node_in_dim == 4
     model = model(
-        nfeature_dim=nfeature_dim,
-        efeature_dim=efeature_dim,
-        output_dim=output_dim,
+        nfeature_dim=node_in_dim,
+        efeature_dim=edge_dim,
+        output_dim=node_out_dim,
         hidden_dim=hidden_dim,
         n_gnn_layers=n_gnn_layers,
         K=conv_K,
