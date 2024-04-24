@@ -59,12 +59,12 @@ def train_epoch(
                             # data.y.shape == (N, 6)
 
         if isinstance(loss_fn, Masked_L2_loss):
-            loss = loss_fn(out, data.y, data.x[:, 10:])
+            loss = loss_fn(out, data.y, data.pred_mask)
         elif isinstance(loss_fn, PowerImbalance):
             # have to mask out the non-predicted values, otherwise
             #   the network can learn to predict full-zeros
-            masked_out = out*data.x[:, 10:] \
-                        + data.x[:, 4:10]*(1-data.x[:, 10:])
+            masked_out = out*data.pred_mask \
+                        + data.x*(1-data.pred_mask)
             loss = loss_fn(masked_out, data.edge_index, data.edge_attr)
         elif isinstance(loss_fn, MixedMSEPoweImbalance):
             loss = loss_fn(out, data.edge_index, data.edge_attr, data.y)
