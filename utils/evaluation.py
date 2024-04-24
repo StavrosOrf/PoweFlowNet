@@ -11,7 +11,7 @@ from torch.optim.optimizer import Optimizer
 import torch.nn as nn
 from tqdm import tqdm
 
-from utils.custom_loss_functions import Masked_L2_loss, PowerImbalance, MixedMSEPoweImbalance, MaskedL2V2
+from utils.custom_loss_functions import Masked_L2_loss, PowerImbalance, MixedMSEPoweImbalance, MaskedL2V2, MaskedL1
 
 LOG_DIR = 'logs'
 SAVE_DIR = 'models'
@@ -55,7 +55,8 @@ def evaluate_epoch(
         model: nn.Module,
         loader: DataLoader,
         loss_fn: Callable,
-        device: str = 'cpu') -> float:
+        device: str = 'cpu',
+        pre_loss_fn: Callable|None=None,) -> float:
     """
     Evaluates the performance of a trained neural network model on a dataset using the specified data loader.
 
@@ -68,6 +69,7 @@ def evaluate_epoch(
         float: The mean loss value over all the batches in the DataLoader.
 
     """
+    pre_loss_fn = pre_loss_fn or (lambda x: x)
     model.eval()
     total_loss = 0.
     num_samples = 0
@@ -77,18 +79,23 @@ def evaluate_epoch(
         out = model(data)
 
         if isinstance(loss_fn, Masked_L2_loss):
-            loss = loss_fn(out, data.y, data.pred_mask)
+            out = pre_loss_fn(out)
+            target = pre_loss_fn(data.y)
+            loss = loss_fn(out, target, data.pred_mask)
         elif isinstance(loss_fn, PowerImbalance):
             # have to mask out the non-predicted values, otherwise
             #   the network can learn to predict full-zeros
             masked_out = out*data.pred_mask \
                         + data.pred_mask*(1-data.pred_mask)
+            masked_out = pre_loss_fn(masked_out)
             loss = loss_fn(masked_out, data.edge_index, data.edge_attr)
             # loss = loss_fn(data.y, data.edge_index, data.edge_attr)
         elif isinstance(loss_fn, MixedMSEPoweImbalance):
+            out = pre_loss_fn(out)
             loss = loss_fn(out, data.edge_index, data.edge_attr, data.y)
         else:
-            loss = loss_fn(out, data.y)
+            out, target = pre_loss_fn(out), pre_loss_fn(data.y)
+            loss = loss_fn(out, target)
 
         num_samples += len(data)
         total_loss += loss.item() * len(data)
@@ -101,7 +108,8 @@ def evaluate_epoch_v2(
         model: nn.Module,
         loader: DataLoader,
         loss_fn: Callable,
-        device: str = 'cpu') -> float:
+        device: str = 'cpu',
+        pre_loss_fn: Callable|None=None,) -> float:
     """
     Evaluates the performance of a trained neural network model on a dataset using the specified data loader.
 
@@ -114,32 +122,39 @@ def evaluate_epoch_v2(
         float: The mean loss value over all the batches in the DataLoader.
 
     """
+    pre_loss_fn = pre_loss_fn or (lambda x: x)
     model.eval()
     total_loss_terms = None
     num_samples = 0
     pbar = tqdm(loader, total=len(loader), desc='Evaluating:')
     for data in pbar:
+        loss_terms = {}
         data = data.to(device)
         out = model(data)
 
         if isinstance(loss_fn, Masked_L2_loss):
-            loss = loss_fn(out, data.y, data.pred_mask)
+            out, target = pre_loss_fn(out), pre_loss_fn(data.y)
+            loss = loss_fn(out, target, data.pred_mask)
             loss_terms['total'] = loss
-        elif isinstance(loss_fn, MaskedL2V2):
-            loss_terms = loss_fn(out, data.y, data.pred_mask)
+        elif isinstance(loss_fn, MaskedL2V2) or isinstance(loss_fn, MaskedL1):
+            out, target = pre_loss_fn(out), pre_loss_fn(data.y)
+            loss_terms = loss_fn(out, target, data.pred_mask)
         elif isinstance(loss_fn, PowerImbalance):
             # have to mask out the non-predicted values, otherwise
             #   the network can learn to predict full-zeros
             masked_out = out*data.pred_mask \
                         + data.x*(1-data.pred_mask)
+            masked_out = pre_loss_fn(masked_out)
             loss = loss_fn(masked_out, data.edge_index, data.edge_attr)
             loss_terms['total'] = loss
             # loss = loss_fn(data.y, data.edge_index, data.edge_attr)
         elif isinstance(loss_fn, MixedMSEPoweImbalance):
+            out = pre_loss_fn(out)
             loss = loss_fn(out, data.edge_index, data.edge_attr, data.y)
             loss_terms['total'] = loss
         else:
-            loss = loss_fn(out, data.y)
+            out, target = pre_loss_fn(out), pre_loss_fn(data.y)
+            loss = loss_fn(out, target)
             loss_terms['total'] = loss
 
         num_samples += len(data)

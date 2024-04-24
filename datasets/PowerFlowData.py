@@ -32,7 +32,15 @@ edge_feature_names_from_files = [
     'r pu',                 # 
     'x pu',                 # 
 ]
-        
+
+def random_bus_type(data: Data) -> Data:
+    " data.bus_type -> randomize "
+    data.bus_type = torch.randint_like(data.bus_type, low=0, high=2)
+    
+    return data
+    
+def denormalize(input, mean, std):
+    return input*(std.to(input.device)+1e-7) + mean.to(input.device)
 
 class PowerFlowData(InMemoryDataset):
     """PowerFlowData(InMemoryDataset)
