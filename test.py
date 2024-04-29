@@ -93,18 +93,20 @@ def main():
     _loss = MaskedL2V2()
     masked_l2_terms = evaluate_epoch_v2(model, test_loader, _loss, device)
     for key, value in masked_l2_terms.items():
-        print(f"MaskedL2 {key}:\t{value:.4f}")
+        print(f"MaskedL2 {key}:\t{value:.6f}")
     masked_l2_terms_de = evaluate_epoch_v2(model, test_loader, _loss, 
                                            pre_loss_fn=partial(denormalize, mean=xymean, std=xystd), device=device)
     for key, value in masked_l2_terms_de.items():
-        print(f"MaskedL2 {key}:\t{value:.4f}")
+        print(f"MaskedL2(denorm) {key}:\t{value:.6f}")
     masked_l1_terms_de = evaluate_epoch_v2(model, test_loader, MaskedL1(), 
                                            pre_loss_fn=partial(denormalize, mean=xymean, std=xystd), device=device)
     for key, value in masked_l1_terms_de.items():
-        print(f"MaskedL1 {key}:\t{value:.4f}")
+        print(f"MaskedL1(denorm) {key}:\t{value:.6f}")
     for name, loss_fn in all_losses.items():
         test_loss_terms = evaluate_epoch_v2(model, test_loader, loss_fn, device)
-        print(f"{name}:\t{test_loss_terms['total']:.4f}")
+        print(f"{name}:\t{test_loss_terms['total']:.6f}")
+        if 'ref' in test_loss_terms:
+            print(f"{name}(ref):\t{test_loss_terms['ref']:.6f}")
     
 
 
