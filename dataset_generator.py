@@ -16,7 +16,7 @@ import os
 
 from utils.data_utils import perturb_topology
 
-number_of_samples = 2000
+number_of_samples = 30000
 number_of_processes = 10
 
 def create_case3():
@@ -44,11 +44,14 @@ def unify_vn(net):
         net.bus['vn_kv'][node_id] = max(net.bus['vn_kv'])
 
 def get_trafo_z_pu(net):
-    for trafo_id in net.trafo.index:
-        # net.trafo['i0_percent'][trafo_id] = 0.
-        # net.trafo['pfe_kw'][trafo_id] = 0.
-        net.trafo[trafo_id, 'i0_percent'] = 0.
-        net.trafo[trafo_id, 'pfe_kw'] = 0.
+    # for trafo_id in net.trafo.index:
+    #     # net.trafo['i0_percent'][trafo_id] = 0.
+    #     # net.trafo['pfe_kw'][trafo_id] = 0.
+    #     net.trafo[trafo_id, 'i0_percent'] = 0.
+    #     net.trafo[trafo_id, 'pfe_kw'] = 0.
+        
+    net.trafo.loc[net.trafo.index, 'i0_percent'] = 0.
+    net.trafo.loc[net.trafo.index, 'pfe_kw'] = 0.
     
     z_pu = net.trafo['vk_percent'].values / 100. * 1000. / net.sn_mva
     r_pu = net.trafo['vkr_percent'].values / 100. * 1000. / net.sn_mva
@@ -107,7 +110,9 @@ def generate_data(sublist_size, rng, base_net_create, num_lines_to_remove=0, num
 
         # rng = np.random.default_rng()
         r = rng.uniform(0.8*r, 1.2*r, r.shape[0])
-        x = rng.uniform(0.8*x, 1.2*x, x.shape[0])
+        _x_min = np.where(x>=0, 0.8*x, 1.2*x) # in 6470rte, line reactance might be negative
+        _x_max = np.where(x>=0, 1.2*x, 0.8*x)
+        x = rng.uniform(_x_min, _x_max, x.shape[0])
         # c = np.random.uniform(0.8*c, 1.2*c, c.shape[0])
         le = rng.uniform(0.8*le, 1.2*le, le.shape[0])
         
