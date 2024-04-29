@@ -30,12 +30,13 @@ def plot_error_extreme(std_levels, errors, extra_errors=None, label_errors=None,
     ax.set_xlabel('Standard Deviation Levels')
     if not twinx:
         ax.set_ylabel('Error')
-        ax.grid(True)
     else:
         ax.set_ylabel(label_errors)
     # ax.set_yscale('log')
     
     ax.legend(loc='upper left')
+    
+    ax.grid(True)
     
     fig.savefig(save_path)
     return fig
@@ -50,14 +51,14 @@ def main():
     de_va_errors = np.array([0.8614, 1.6664, 6.8773, 23.6967, 59.6466, 124.8133]) 
     de_va_errors = np.sqrt(de_va_errors) # Va (deg)
     
-    # plot_error_extreme(
-    #     std_levels=std_levels,
-    #     errors=masked_l2_errors,
-    #     extra_errors=phys_errors,
-    #     label_errors='Masked L2 error',
-    #     label_extra_errors='Physical error',
-    #     save_path='error_extreme.pdf',
-    # )
+    plot_error_extreme(
+        std_levels=std_levels,
+        errors=masked_l2_errors,
+        extra_errors=phys_errors,
+        label_errors='Masked L2 error',
+        label_extra_errors='Physical error',
+        save_path='error_extreme_ml2_phys.pdf',
+    )
     plot_error_extreme(
         std_levels=std_levels,
         errors=de_vm_errors,
