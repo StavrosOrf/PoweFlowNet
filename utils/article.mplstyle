@@ -1,6 +1,7 @@
 # Standard figure for articles, fontsize will be normal/small
 # Author: Nan Lin
-# Date: 2024-03-04
+# Date: 2024-04-29
+# feat: add legend fontsize
 
 # figure size in inches
 figure.figsize: 6, 3
@@ -19,6 +20,8 @@ xtick.labelsize: 6
 xtick.minor.visible: True
 ytick.labelsize: 6
 ytick.minor.visible: True
+# legend
+legend.fontsize: 6
 # cmap
 image.cmap: Blues
 # font

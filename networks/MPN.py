@@ -406,6 +406,7 @@ class MaskEmbdMultiMPN(nn.Module):
             nn.ReLU(),
             nn.Linear(hidden_dim, nfeature_dim)
         )
+        self.dropout = nn.Dropout(self.dropout_rate, inplace=False)
 
     def is_directed(self, edge_index):
         'determine if a graph id directed by reading only one edge'
@@ -453,7 +454,7 @@ class MaskEmbdMultiMPN(nn.Module):
                 x = self.layers[i](x=x, edge_index=edge_index, edge_attr=edge_features)
             else:
                 x = self.layers[i](x=x, edge_index=edge_index)
-            x = nn.Dropout(self.dropout_rate, inplace=False)(x)
+            x = self.dropout(x)
             x = nn.ReLU()(x)
         
         # x = self.convs[-1](x=x, edge_index=edge_index, edge_weight=edge_attr)

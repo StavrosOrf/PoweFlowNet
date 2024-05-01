@@ -147,6 +147,7 @@ def evaluate_epoch_v2(
             masked_out = pre_loss_fn(masked_out)
             loss = loss_fn(masked_out, data.edge_index, data.edge_attr)
             loss_terms['total'] = loss
+            loss_terms['ref'] = loss_fn(data.y, data.edge_index, data.edge_attr)
             # loss = loss_fn(data.y, data.edge_index, data.edge_attr)
         elif isinstance(loss_fn, MixedMSEPoweImbalance):
             out = pre_loss_fn(out)
