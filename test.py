@@ -23,7 +23,7 @@ SAVE_DIR = 'models'
 
 @torch.no_grad()
 def main():
-    run_id = '20240422-1660'
+    run_id = '20240429-6990'
     # logging.basicConfig(filename=f'test_{run_id}.log', level=100)
     models = {
         'MPN': MPN,
@@ -52,6 +52,10 @@ def main():
                             split=[.5, .2, .3], task='test',
                             xymean=xymean, xystd=xystd, edgemean=edgemean, edgestd=edgestd)
     test_loader = DataLoader(testset, batch_size=batch_size, shuffle=False)
+    _sample = testset[0]
+    print(f'mean of vm,va,p,q:\t{xymean}')
+    print(f'std of vm,va,p,q:\t{xystd}')
+    print(f'#slack:{(_sample.bus_type==0).sum()},\t#pv:{(_sample.bus_type==1).sum()},\t#pq:{(_sample.bus_type==2).sum()}')
     
     pwr_imb_loss = PowerImbalance(*testset.get_data_means_stds()).to(device)
     mse_loss = torch.nn.MSELoss(reduction='mean').to(device)
