@@ -54,6 +54,91 @@ class EdgeAggregation(MessagePassing):
         #   no bias here
         
         return out
+    
+class SlackAggregation(MessagePassing):
+    """
+    Edge aggregation for slack bus
+    
+    """
+    def __init__(self, nfeature_dim, hidden_dim, flow='to_slack'):
+        assert flow in ['to_slack', 'from_slack']
+        super().__init__(aggr='add',
+                         flow='target_to_source' if flow=='to_slack' else 'source_to_target')
+        self.nfeature_dim = nfeature_dim
+
+        # self.linear = nn.Linear(nfeature_dim, output_dim) 
+        self.edge_aggr = nn.Sequential(
+            nn.Linear(nfeature_dim*2, hidden_dim),
+            nn.ReLU(),
+            nn.Linear(hidden_dim, nfeature_dim)
+        )
+        
+    def message(self, x_i, x_j):
+        '''
+        x_j:        shape (N, nfeature_dim,)
+        '''
+        return self.edge_aggr(torch.cat([x_i, x_j], dim=-1)) # PNAConv style
+    
+    def updated(self, aggregated, x):
+        return x+aggregated
+    
+    def recreate_slack_graph(self, bus_type, batch):
+        """
+        bus_type: (N,) {0,1,2}
+        batch: (N,) [0,0,0,...,1,1,1,.,,,]
+        """
+        num_nodes = len(bus_type)
+        slack_mask = bus_type == 0 # shape (N,)
+        slack_indices = slack_mask.nonzero(as_tuple=False).squeeze()
+        batch_indices_of_slack = batch[slack_indices]
+        
+        valid_connections = batch_indices_of_slack[:, None] == batch[None, :]
+            # shape (num_slack, N)
+        from_nodes = slack_indices[:, None].expand(-1, num_nodes)
+        to_nodes = torch.arange(num_nodes)[None, :].expand(slack_indices.size(0), -1)[valid_connections]
+        
+        # filter out self connections
+        not_self_connections = from_nodes != to_nodes
+        from_nodes = from_nodes[not_self_connections]
+        to_nodes = to_nodes[not_self_connections]
+        
+        slack_edge_index = torch.stack([from_nodes, to_nodes], dim=0) # shape (2, -1)
+        
+        return slack_edge_index
+    
+    def forward(self, x, bus_type, batch):
+        '''
+        input:
+            x:          shape (num_nodes, nfeature_dim,)
+            bus_type:   shape (num_nodes,)
+            batch:      shape (num_nodes,)
+            
+        process:
+            PV,PQ nodes ---(info)---> slack
+            
+        output:
+            x':        shape num_nodes, nfeature_dim,)
+        '''
+        # Step 1: Add self-loops to the adjacency matrix.
+        # edge_index, _ = add_self_loops(edge_index, num_nodes=x.size(0)) # no self loop because NO EDGE ATTR FOR SELF LOOP
+        
+        # Step 2: Calculate the degree of each node.
+        slack_edge_index = self.recreate_slack_graph(bus_type, batch)
+        row, col = slack_edge_index
+        deg = degree(col, x.size(0), dtype=x.dtype)
+        deg_inv_sqrt = deg.pow(-0.5)
+        deg_inv_sqrt[deg_inv_sqrt == float('inf')] = 0.
+        norm = deg_inv_sqrt[row] * deg_inv_sqrt[col] 
+        
+        # Step 3: Feature transformation. 
+        # x = self.linear(x) # no feature transformation
+        
+        # Step 4: Propagation
+        out = self.propagate(x=x, edge_index=slack_edge_index, norm=norm)
+        #   no bias here
+        
+        return out
+    
 
 class MPN(nn.Module):
     """Wrapped Message Passing Network
