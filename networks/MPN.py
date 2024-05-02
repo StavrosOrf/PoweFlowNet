@@ -62,25 +62,25 @@ class SlackAggregation(MessagePassing):
     """
     def __init__(self, nfeature_dim, hidden_dim, flow='to_slack'):
         assert flow in ['to_slack', 'from_slack']
-        super().__init__(aggr='add',
+        super().__init__(aggr='mean',
                          flow='target_to_source' if flow=='to_slack' else 'source_to_target')
         self.nfeature_dim = nfeature_dim
 
         # self.linear = nn.Linear(nfeature_dim, output_dim) 
-        self.edge_aggr = nn.Sequential(
-            nn.Linear(nfeature_dim*2, hidden_dim),
+        self.mlp = nn.Sequential(
+            nn.Linear(nfeature_dim, hidden_dim),
             nn.ReLU(),
             nn.Linear(hidden_dim, nfeature_dim)
         )
         
-    def message(self, x_i, x_j):
+    def message(self, x_j):
         '''
         x_j:        shape (N, nfeature_dim,)
         '''
-        return self.edge_aggr(torch.cat([x_i, x_j], dim=-1)) # PNAConv style
+        return self.mlp(x_j)
     
-    def updated(self, aggregated, x):
-        return x+aggregated
+    def update(self, aggregated):
+        return aggregated
     
     def recreate_slack_graph(self, bus_type, batch):
         """
@@ -94,8 +94,8 @@ class SlackAggregation(MessagePassing):
         
         valid_connections = batch_indices_of_slack[:, None] == batch[None, :]
             # shape (num_slack, N)
-        from_nodes = slack_indices[:, None].expand(-1, num_nodes)
-        to_nodes = torch.arange(num_nodes)[None, :].expand(slack_indices.size(0), -1)[valid_connections]
+        from_nodes = slack_indices[:, None].expand(-1, num_nodes)[valid_connections]
+        to_nodes = torch.arange(num_nodes, device=from_nodes.device)[None, :].expand(slack_indices.size(0), -1)[valid_connections]
         
         # filter out self connections
         not_self_connections = from_nodes != to_nodes
@@ -484,6 +484,7 @@ class MaskEmbdMultiMPN(nn.Module):
             self.layers.append(TAGConv(hidden_dim, hidden_dim, K=K))
             
         # self.layers.append(TAGConv(hidden_dim, output_dim, K=K))
+        self.slack_aggr = SlackAggregation(hidden_dim, hidden_dim, 'to_slack')
         self.layers.append(EdgeAggregation(hidden_dim, efeature_dim, hidden_dim, output_dim))
         
         self.mask_embd = nn.Sequential(
@@ -526,6 +527,8 @@ class MaskEmbdMultiMPN(nn.Module):
         assert data.x.shape[-1] == 4
         x = data.x # (N, 4)
         input_x = x # problem if there is inplace operation on x, so pay attention
+        bus_type = data.bus_type.long()
+        batch = data.batch
         mask = data.pred_mask.float() # indicating which features to predict (==1)
         edge_index = data.edge_index
         edge_features = data.edge_attr
@@ -541,6 +544,9 @@ class MaskEmbdMultiMPN(nn.Module):
                 x = self.layers[i](x=x, edge_index=edge_index)
             x = self.dropout(x)
             x = nn.ReLU()(x)
+        
+        # slack aggr
+        x = x + self.slack_aggr(x, bus_type=bus_type, batch=batch)
         
         # x = self.convs[-1](x=x, edge_index=edge_index, edge_weight=edge_attr)
         if isinstance(self.layers[-1], EdgeAggregation):
