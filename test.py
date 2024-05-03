@@ -19,7 +19,7 @@ SAVE_DIR = 'models'
 
 @torch.no_grad()
 def main():
-    run_id = '20230628-6312'
+    run_id = '20230627-9288'
     models = {
         'MPN': MPN,
         'MPN_simplenet': MPN_simplenet,
@@ -37,8 +37,15 @@ def main():
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
+    data_param_path = os.path.join(data_dir, 'params', f'data_params_{run_id}.pt')
+    
+    data_param = torch.load(data_param_path, map_location='cpu')
+    xymean, xystd = data_param['xymean'], data_param['xystd']
+    edgemean, edgestd = data_param['edgemean'], data_param['edgestd']
+        
     testset = PowerFlowData(root=data_dir, case=grid_case,
-                            split=[.5, .2, .3], task='test')
+                            split=[.5, .2, .3], task='test',
+                            xymean=xymean, xystd=xystd, edgemean=edgemean, edgestd=edgestd)
     test_loader = DataLoader(testset, batch_size=batch_size, shuffle=False)
     
     pwr_imb_loss = PowerImbalance(*testset.get_data_means_stds()).to(device)
@@ -80,21 +87,6 @@ def main():
     for name, loss_fn in all_losses.items():
         test_loss = evaluate_epoch(model, test_loader, loss_fn, device)
         print(f"{name}:\t{test_loss:.4f}")
-
-    # sample = testset[10].to(device)
-
-    # out = model(sample)
-    
-    # out = out*sample.x[:,10:]
-    # input_x = sample.x[:,4:10]*sample.x[:,10:]
-    # # print(f"Input: {sample*testset.xystd + testset.xymean}")
-    # # print(f"Output: {out*testset.xystd + testset.xymean}")
-    
-    # for i in range(sample.x.shape[0]):
-    #     print("=====================================")
-    #     print(f"Actual: {input_x[i,:]}")
-    #     print(f"Predicted: {out[i,:]}")
-    #     print(f"Difference: {input_x[i,:] - out[i,:]}")
     
 
 

@@ -1,16 +1,17 @@
-# PoweFlowNet
+# PowerFlowNet
 Leveraging Message Passing GNNs for High-Quality Power Flow Approximation.
 
+![image](https://github.com/StavrosOrf/PoweFlowNet/assets/17108978/1a6398c5-cac6-40cf-a3a1-0bc8fb66a0dc)
 
-![poweflownet_arch (1)](https://github.com/stavrosgreece/PoweFlowNet/assets/17108978/7ea2b68f-3aca-452c-a82a-b6614c70626f)
 
-PoweFlowNet's distinctiveness, compared to existing PF GNN approaches, lies in its adept utilization of the capabilities from message-passing GNNs and high-order GCNs in a unique arrangement called PoweFlowConv, for handling a trainable masked embedding of the network graph. This innovative approach renders PoweFlowNet remarkably scalable, presenting an effective solution for the PF problem.
+PowerFlowNet's distinctiveness, compared to existing PF GNN approaches, lies in its adept utilization of the capabilities from message-passing GNNs and high-order GCNs in a unique arrangement called PowerFlowConv, for handling a trainable masked embedding of the network graph. This innovative approach renders PoweFlowNet remarkably scalable, presenting an effective solution for the PF problem.
 
 ### Description
 
-PoweFlowNet transforms the PF into a GNN node-regression problem by representing each bus as a node and each transmission line as an edge while maintaining the network's connectivity.
+PowerFlowNet transforms the PF into a GNN node-regression problem by representing each bus as a node and each transmission line as an edge while maintaining the network's connectivity.
 
-![PowerFlowProblemFOrmulation](https://github.com/stavrosgreece/PoweFlowNet/assets/17108978/dc4c2570-7148-497a-a02b-f6c550ad8ce7)
+![image](https://github.com/StavrosOrf/PoweFlowNet/assets/17108978/3c3314c8-c111-41a7-8eb6-2116533f7f72)
+
 
 ### Instructions
 
@@ -33,9 +34,9 @@ python3 train.py --cfg_json ./configs/standard.json\
 
 Follow the links below to download the datasets and the trained models used in the paper.
 
-Dataset link: https://tud365-my.sharepoint.com/:f:/g/personal/sorfanoudakis_tudelft_nl/EmWGZcpct51Gp2np1Zbv7NEBdANZCyFMlD7Iiyamp2_ztw?e=m4dNyK
+[Dataset link](https://surfdrive.surf.nl/files/index.php/s/Qw4RHLvI2RPBIBL)
 
-Trained models link [temporary]: https://tud365-my.sharepoint.com/personal/nlin2_tudelft_nl/_layouts/15/onedrive.aspx?ct=1691140898356&or=Teams%2DHL&ga=1&LOF=1&id=%2Fpersonal%2Fnlin2%5Ftudelft%5Fnl%2FDocuments%2FProjects%2FPoweFlowNet&view=0
+[Trained models link](https://surfdrive.surf.nl/files/index.php/s/iunfVTGsABT5NaD)
 
 
 
@@ -43,6 +44,7 @@ Trained models link [temporary]: https://tud365-my.sharepoint.com/personal/nlin2
 runnable files:
 - `train.py` trains the model
 - `results.py` plots the results
+- and more scripts to generate results and plots ...
 
 # Useful Information
 First two dimensions out of seven in `edge_features` are `from_node` and `to_node`, and they are indexed from $1$. This is processed in the `PowerFlowData` dataset class. It is reindexed from $0$ and the `from_node` and `to_node` are removed from the `edge_features` tensor.
@@ -68,6 +70,13 @@ Raw data format:
 
 If you use parts of this framework, datasets, or trained models, please cite as:
 ```
-TBA
+@misc{lin2023powerflownet,
+      title={PowerFlowNet: Leveraging Message Passing GNNs for Improved Power Flow Approximation}, 
+      author={Nan Lin and Stavros Orfanoudakis and Nathan Ordonez Cardenas and Juan S. Giraldo and Pedro P. Vergara},
+      year={2023},
+      eprint={2311.03415},
+      archivePrefix={arXiv},
+      primaryClass={cs.LG}
+}
 ```
 
