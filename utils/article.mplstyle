@@ -1,10 +1,30 @@
-figure.figsize: 12, 6
-figure.dpi: 300
-figure.autolayout: True
-axes.titlesize: 16
-axes.labelsize: 16
-xtick.labelsize: 14
+# Standard figure for articles, fontsize will be normal/small
+# Author: Nan Lin
+# Date: 2024-04-29
+# feat: add legend fontsize
+
+# figure size in inches
+figure.figsize: 6, 3
+figure.titlesize: 10
+figure.titleweight: bold
+figure.dpi: 150
+figure.constrained_layout.use: True
+figure.constrained_layout.h_pad: 0.02
+figure.constrained_layout.w_pad: 0.02
+# axes
+axes.titlesize: 10
+axes.labelsize: 8
+axes.unicode_minus: True
+# ticks
+xtick.labelsize: 6
 xtick.minor.visible: True
-ytick.labelsize: 14
+ytick.labelsize: 6
 ytick.minor.visible: True
+# legend
+legend.fontsize: 6
+# cmap
 image.cmap: Blues
+# font
+font.family: serif
+# text
+text.usetex: True

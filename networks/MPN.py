@@ -406,6 +406,7 @@ class MaskEmbdMultiMPN(nn.Module):
             nn.ReLU(),
             nn.Linear(hidden_dim, nfeature_dim)
         )
+        self.dropout = nn.Dropout(self.dropout_rate, inplace=False)
 
     def is_directed(self, edge_index):
         'determine if a graph id directed by reading only one edge'
@@ -435,10 +436,12 @@ class MaskEmbdMultiMPN(nn.Module):
             return edge_index, edge_attr
     
     def forward(self, data):
-        assert data.x.shape[-1] == self.nfeature_dim * 2 + 4 # features and their mask + one-hot node type embedding
-        x = data.x[:, 4:4+self.nfeature_dim] # first four features: node type. not elegant at all this way. just saying. 
+        # assert data.x.shape[-1] == self.nfeature_dim * 2 + 4 # features and their mask + one-hot node type embedding
+        # x = data.x[:, 4:4+self.nfeature_dim] # first four features: node type. not elegant at all this way. just saying. 
+        assert data.x.shape[-1] == 4
+        x = data.x # (N, 4)
         input_x = x # problem if there is inplace operation on x, so pay attention
-        mask = data.x[:, -self.nfeature_dim:]# last few dimensions: mask.
+        mask = data.pred_mask.float() # indicating which features to predict (==1)
         edge_index = data.edge_index
         edge_features = data.edge_attr
                 
@@ -451,7 +454,7 @@ class MaskEmbdMultiMPN(nn.Module):
                 x = self.layers[i](x=x, edge_index=edge_index, edge_attr=edge_features)
             else:
                 x = self.layers[i](x=x, edge_index=edge_index)
-            x = nn.Dropout(self.dropout_rate, inplace=False)(x)
+            x = self.dropout(x)
             x = nn.ReLU()(x)
         
         # x = self.convs[-1](x=x, edge_index=edge_index, edge_weight=edge_attr)
