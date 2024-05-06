@@ -485,6 +485,7 @@ class MaskEmbdMultiMPN(nn.Module):
             
         # self.layers.append(TAGConv(hidden_dim, output_dim, K=K))
         # self.slack_aggr = SlackAggregation(hidden_dim, hidden_dim, 'to_slack')
+        # self.slack_propagate = SlackAggregation(hidden_dim, hidden_dim, 'from_slack')
         self.layers.append(EdgeAggregation(hidden_dim, efeature_dim, hidden_dim, output_dim))
         
         self.mask_embd = nn.Sequential(
@@ -547,6 +548,7 @@ class MaskEmbdMultiMPN(nn.Module):
         
         # slack aggr
         # x = x + self.slack_aggr(x, bus_type=bus_type, batch=batch)
+        # x = x + self.slack_propagate(x, bus_type=bus_type, batch=batch)
         
         # x = self.convs[-1](x=x, edge_index=edge_index, edge_weight=edge_attr)
         if isinstance(self.layers[-1], EdgeAggregation):
