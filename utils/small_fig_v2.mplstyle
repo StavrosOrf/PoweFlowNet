@@ -4,8 +4,8 @@
 # feat: add legend fontsize
 
 # figure size in inches
-# figure.figsize: 7, 2.5 # width, height for a column figure in two-column article
-figure.figsize: 2.3, 2.5 # width, height for a column figure in two-column article
+figure.figsize: 4, 2.5 # width, height for a column figure in two-column article
+# figure.figsize: 2.3, 2.5 # width, height for a 1/2 column figure in two-column article
 figure.titlesize: 10
 figure.titleweight: bold
 figure.dpi: 150

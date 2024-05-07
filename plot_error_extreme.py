@@ -11,7 +11,7 @@ def plot_error_extreme(std_levels, errors, extra_errors=None, label_errors=None,
     label_extra_errors = label_extra_errors or 'Error'
     save_path = save_path or os.path.join(os.getcwd(), 'error_extreme.pdf')
     plt.rcParams['text.usetex'] = True
-    fig = plt.figure(figsize=(3.5, 2.5))
+    fig = plt.figure()
     ax = fig.add_subplot(111)
     
     h0 = ax.plot(std_levels, errors, label=label_errors, marker='s', color='tab:blue')
@@ -55,16 +55,16 @@ def main():
     # masked_l2_errors = np.array([0.0159, 0.0244, 0.0667, 0.2168, 0.5242, 1.0747])
     # phys_errors = np.array([0.7883, 1.0601, 1.1612, 1.9435, 4.7033, 10.8349])
     
-    # de_vm_errors = np.array([3e-6, 5e-6, 9e-6, 1.8e-6, 1.8e-5, 3.4e-5]) 
-    # de_vm_errors = np.sqrt(de_vm_errors) # Vm (pu)
-    # de_va_errors = np.array([0.8614, 1.6664, 6.8773, 23.6967, 59.6466, 124.8133]) 
-    # de_va_errors = np.sqrt(de_va_errors) # Va (deg)
+    de_vm_errors = np.array([3e-6, 5e-6, 9e-6, 1.8e-6, 1.8e-5, 3.4e-5]) 
+    de_vm_errors = np.sqrt(de_vm_errors) # Vm (pu)
+    de_va_errors = np.array([0.8614, 1.6664, 6.8773, 23.6967, 59.6466, 124.8133]) 
+    de_va_errors = np.sqrt(de_va_errors) # Va (deg)
     
     # CASE 6470rte
-    de_vm_errors = np.array([0.000026, 0.000031, 0.000052, 0.000112, 0.000235, 0.000379])
-    de_vm_errors = np.sqrt(de_vm_errors) # Vm (pu)
-    de_va_errors = np.array([12.61, 39.4316, 272.9134, 1024.9236, 2492.5876, 3475.6005])
-    de_va_errors = np.sqrt(de_va_errors) # Va (deg)
+    # de_vm_errors = np.array([0.000026, 0.000031, 0.000052, 0.000112, 0.000235, 0.000379])
+    # de_vm_errors = np.sqrt(de_vm_errors) # Vm (pu)
+    # de_va_errors = np.array([12.61, 39.4316, 272.9134, 1024.9236, 2492.5876, 3475.6005])
+    # de_va_errors = np.sqrt(de_va_errors) # Va (deg)
     
     
     # plot_error_extreme(
@@ -83,7 +83,7 @@ def main():
         label_extra_errors=r'$\theta$ RMSE (deg)',
         save_path='error_extreme_vm_va.pdf',
         twinx=True,
-        title='Case 6470rte'
+        # title='Case 6470rte'
     )
 
 if __name__ == '__main__':
