@@ -55,9 +55,9 @@ def main():
     # masked_l2_errors = np.array([0.0159, 0.0244, 0.0667, 0.2168, 0.5242, 1.0747])
     # phys_errors = np.array([0.7883, 1.0601, 1.1612, 1.9435, 4.7033, 10.8349])
     
-    de_vm_errors = np.array([3e-6, 5e-6, 9e-6, 1.8e-6, 1.8e-5, 3.4e-5]) 
+    de_vm_errors = np.array([2e-6, 3e-6, 4e-6, 7e-6, 1.6e-5, 3.2e-5]) 
     de_vm_errors = np.sqrt(de_vm_errors) # Vm (pu)
-    de_va_errors = np.array([0.8614, 1.6664, 6.8773, 23.6967, 59.6466, 124.8133]) 
+    de_va_errors = np.array([0.7787, 1.2852, 6.4346, 24.3934, 60.2678, 117.9775]) 
     de_va_errors = np.sqrt(de_va_errors) # Va (deg)
     
     # CASE 6470rte
