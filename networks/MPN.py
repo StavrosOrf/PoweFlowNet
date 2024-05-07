@@ -54,6 +54,91 @@ class EdgeAggregation(MessagePassing):
         #   no bias here
         
         return out
+    
+class SlackAggregation(MessagePassing):
+    """
+    Edge aggregation for slack bus
+    
+    """
+    def __init__(self, nfeature_dim, hidden_dim, flow='to_slack'):
+        assert flow in ['to_slack', 'from_slack']
+        super().__init__(aggr='mean',
+                         flow='target_to_source' if flow=='to_slack' else 'source_to_target')
+        self.nfeature_dim = nfeature_dim
+
+        # self.linear = nn.Linear(nfeature_dim, output_dim) 
+        self.mlp = nn.Sequential(
+            nn.Linear(nfeature_dim, hidden_dim),
+            nn.ReLU(),
+            nn.Linear(hidden_dim, nfeature_dim)
+        )
+        
+    def message(self, x_j):
+        '''
+        x_j:        shape (N, nfeature_dim,)
+        '''
+        return self.mlp(x_j)
+    
+    def update(self, aggregated):
+        return aggregated
+    
+    def recreate_slack_graph(self, bus_type, batch):
+        """
+        bus_type: (N,) {0,1,2}
+        batch: (N,) [0,0,0,...,1,1,1,.,,,]
+        """
+        num_nodes = len(bus_type)
+        slack_mask = bus_type == 0 # shape (N,)
+        slack_indices = slack_mask.nonzero(as_tuple=False).squeeze()
+        batch_indices_of_slack = batch[slack_indices]
+        
+        valid_connections = batch_indices_of_slack[:, None] == batch[None, :]
+            # shape (num_slack, N)
+        from_nodes = slack_indices[:, None].expand(-1, num_nodes)[valid_connections]
+        to_nodes = torch.arange(num_nodes, device=from_nodes.device)[None, :].expand(slack_indices.size(0), -1)[valid_connections]
+        
+        # filter out self connections
+        not_self_connections = from_nodes != to_nodes
+        from_nodes = from_nodes[not_self_connections]
+        to_nodes = to_nodes[not_self_connections]
+        
+        slack_edge_index = torch.stack([from_nodes, to_nodes], dim=0) # shape (2, -1)
+        
+        return slack_edge_index
+    
+    def forward(self, x, bus_type, batch):
+        '''
+        input:
+            x:          shape (num_nodes, nfeature_dim,)
+            bus_type:   shape (num_nodes,)
+            batch:      shape (num_nodes,)
+            
+        process:
+            PV,PQ nodes ---(info)---> slack
+            
+        output:
+            x':        shape num_nodes, nfeature_dim,)
+        '''
+        # Step 1: Add self-loops to the adjacency matrix.
+        # edge_index, _ = add_self_loops(edge_index, num_nodes=x.size(0)) # no self loop because NO EDGE ATTR FOR SELF LOOP
+        
+        # Step 2: Calculate the degree of each node.
+        slack_edge_index = self.recreate_slack_graph(bus_type, batch)
+        row, col = slack_edge_index
+        deg = degree(col, x.size(0), dtype=x.dtype)
+        deg_inv_sqrt = deg.pow(-0.5)
+        deg_inv_sqrt[deg_inv_sqrt == float('inf')] = 0.
+        norm = deg_inv_sqrt[row] * deg_inv_sqrt[col] 
+        
+        # Step 3: Feature transformation. 
+        # x = self.linear(x) # no feature transformation
+        
+        # Step 4: Propagation
+        out = self.propagate(x=x, edge_index=slack_edge_index, norm=norm)
+        #   no bias here
+        
+        return out
+    
 
 class MPN(nn.Module):
     """Wrapped Message Passing Network
@@ -399,6 +484,8 @@ class MaskEmbdMultiMPN(nn.Module):
             self.layers.append(TAGConv(hidden_dim, hidden_dim, K=K))
             
         # self.layers.append(TAGConv(hidden_dim, output_dim, K=K))
+        # self.slack_aggr = SlackAggregation(hidden_dim, hidden_dim, 'to_slack')
+        # self.slack_propagate = SlackAggregation(hidden_dim, hidden_dim, 'from_slack')
         self.layers.append(EdgeAggregation(hidden_dim, efeature_dim, hidden_dim, output_dim))
         
         self.mask_embd = nn.Sequential(
@@ -441,6 +528,8 @@ class MaskEmbdMultiMPN(nn.Module):
         assert data.x.shape[-1] == 4
         x = data.x # (N, 4)
         input_x = x # problem if there is inplace operation on x, so pay attention
+        bus_type = data.bus_type.long()
+        batch = data.batch
         mask = data.pred_mask.float() # indicating which features to predict (==1)
         edge_index = data.edge_index
         edge_features = data.edge_attr
@@ -456,6 +545,10 @@ class MaskEmbdMultiMPN(nn.Module):
                 x = self.layers[i](x=x, edge_index=edge_index)
             x = self.dropout(x)
             x = nn.ReLU()(x)
+        
+        # slack aggr
+        # x = x + self.slack_aggr(x, bus_type=bus_type, batch=batch)
+        # x = x + self.slack_propagate(x, bus_type=bus_type, batch=batch)
         
         # x = self.convs[-1](x=x, edge_index=edge_index, edge_weight=edge_attr)
         if isinstance(self.layers[-1], EdgeAggregation):
