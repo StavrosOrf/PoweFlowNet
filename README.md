@@ -70,13 +70,15 @@ Raw data format:
 
 If you use parts of this framework, datasets, or trained models, please cite as:
 ```
-@misc{lin2023powerflownet,
-      title={PowerFlowNet: Leveraging Message Passing GNNs for Improved Power Flow Approximation}, 
-      author={Nan Lin and Stavros Orfanoudakis and Nathan Ordonez Cardenas and Juan S. Giraldo and Pedro P. Vergara},
-      year={2023},
-      eprint={2311.03415},
-      archivePrefix={arXiv},
-      primaryClass={cs.LG}
+@article{LIN2024110112,
+  title = {PowerFlowNet: Power flow approximation using message passing Graph Neural Networks},
+  journal = {International Journal of Electrical Power & Energy Systems},
+  volume = {160},
+  pages = {110112},
+  year = {2024},
+  issn = {0142-0615},
+  doi = {https://doi.org/10.1016/j.ijepes.2024.110112},
+  author = {Nan Lin and Stavros Orfanoudakis and Nathan Ordonez Cardenas and Juan S. Giraldo and Pedro P. Vergara},
 }
 ```
 
