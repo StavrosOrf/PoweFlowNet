@@ -6,6 +6,8 @@ Leveraging Message Passing GNNs for High-Quality Power Flow Approximation.
 
 PowerFlowNet's distinctiveness, compared to existing PF GNN approaches, lies in its adept utilization of the capabilities from message-passing GNNs and high-order GCNs in a unique arrangement called PowerFlowConv, for handling a trainable masked embedding of the network graph. This innovative approach renders PoweFlowNet remarkably scalable, presenting an effective solution for the PF problem.
 
+The **PowerFlowNet Paper** can be found at: [link](https://www.sciencedirect.com/science/article/pii/S0142061524003338) 
+
 ### Description
 
 PowerFlowNet transforms the PF into a GNN node-regression problem by representing each bus as a node and each transmission line as an edge while maintaining the network's connectivity.
