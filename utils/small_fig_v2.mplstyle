@@ -1,0 +1,31 @@
+# Standard figure for small articles, fontsize will be larger
+# Author: Nan Lin
+# Date: 2024-05-07
+# feat: add legend fontsize
+
+# figure size in inches
+figure.figsize: 4, 2.5 # width, height for a column figure in two-column article
+# figure.figsize: 2.3, 2.5 # width, height for a 1/2 column figure in two-column article
+figure.titlesize: 10
+figure.titleweight: bold
+figure.dpi: 150
+figure.constrained_layout.use: True
+figure.constrained_layout.h_pad: 0.02
+figure.constrained_layout.w_pad: 0.02
+# axes
+axes.titlesize: 10
+axes.labelsize: 10
+axes.unicode_minus: True
+# ticks
+xtick.labelsize: 10
+xtick.minor.visible: True
+ytick.labelsize: 10
+ytick.minor.visible: True
+# legend
+legend.fontsize: 10
+# cmap
+image.cmap: Blues
+# font
+font.family: serif
+# text
+text.usetex: True

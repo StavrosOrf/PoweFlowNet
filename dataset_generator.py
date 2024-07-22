@@ -18,6 +18,7 @@ from utils.data_utils import perturb_topology
 
 number_of_samples = 30000
 number_of_processes = 10
+ENFORCE_Q_LIMS = False
 
 def create_case3():
     net = pp.create_empty_network()
@@ -138,7 +139,7 @@ def generate_data(sublist_size, rng, base_net_create, num_lines_to_remove=0, num
 
         try:
             net['converged'] = False
-            pp.runpp(net, algorithm='nr', init="results", numba=False)
+            pp.runpp(net, algorithm='nr', init="results", numba=False, enforce_q_lims=ENFORCE_Q_LIMS)
         except:
             if not net['converged']:
                 # print(f"net['converged'] = {net['converged']}")
@@ -167,7 +168,11 @@ def generate_data(sublist_size, rng, base_net_create, num_lines_to_remove=0, num
         types = np.ones(n)*2 # type = load
         for j in range(net.gen.shape[0]):    
             # find index of case['gen'][j,0] in case['bus'][:,0]
-            index = np.where(net.gen['bus'].values[j] == net.bus['name'])[0][0]        
+            index = np.where(net.gen['bus'].values[j] == net.bus['name'])[0][0] 
+            if ENFORCE_Q_LIMS:
+                if net.res_gen['q_mvar'][j] <= net.gen['min_q_mvar'][j] + 1e-6 \
+                    or net.res_gen['q_mvar'][j] >= net.gen['max_q_mvar'][j] - 1e-6:
+                        continue # seen as load bus
             types[index] = 1  # type = generator
         for j in range(net.ext_grid.shape[0]):
             index = np.where(net.ext_grid['bus'].values[j] == net.bus['name'])[0][0]
