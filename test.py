@@ -23,7 +23,7 @@ SAVE_DIR = 'models'
 
 @torch.no_grad()
 def main():
-    run_id = '20240429-6990'
+    run_id = '20240503-29'
     # logging.basicConfig(filename=f'test_{run_id}.log', level=100)
     models = {
         'MPN': MPN,
@@ -51,10 +51,26 @@ def main():
     testset = PowerFlowData(root=data_dir, case=grid_case,
                             split=[.5, .2, .3], task='test',
                             xymean=xymean, xystd=xystd, edgemean=edgemean, edgestd=edgestd)
+    print('data value range')
+    print(f'{testset.data.y.shape}')
+    _y = testset.data.y * xystd + xymean
+    is_slack = testset.data.bus_type == 0
+    is_pv = testset.data.bus_type == 1
+    is_pq = testset.data.bus_type == 2
+    _std = lambda x: ((x-x.mean()).square().sum()/x.numel()).sqrt().item()
+    _l1 = lambda x: ((x-x.mean()).abs().sum()/x.numel()).item()
+    _v = _y[is_pq,0]
+    _a = _y[torch.logical_or(is_pv, is_pq),1]
+    _p = _y[is_slack,2]
+    _q = _y[torch.logical_or(is_slack, is_pv),3]
+    print(f'v: {_v.min().item():.4f}, {_v.max().item():.4f}, STD {_std(_v):.4f}, L1 {_l1(_v):.4f}')
+    print(f'a: {_a.min().item():.4f}, {_a.max().item():.4f}, STD {_std(_a):.4f}, L1 {_l1(_a):.4f}')
+    print(f'p: {_p.min().item():.4f}, {_p.max().item():.4f}, STD {_std(_p):.4f}, L1 {_l1(_p):.4f}')
+    print(f'q: {_q.min().item():.4f}, {_q.max().item():.4f}, STD {_std(_q):.4f}, L1 {_l1(_q):.4f}')
     test_loader = DataLoader(testset, batch_size=batch_size, shuffle=False)
     _sample = testset[0]
     print(f'mean of vm,va,p,q:\t{xymean}')
-    print(f'std of vm,va,p,q:\t{xystd}')
+    # print(f'std of vm,va,p,q:\t{xystd}')
     print(f'#slack:{(_sample.bus_type==0).sum()},\t#pv:{(_sample.bus_type==1).sum()},\t#pq:{(_sample.bus_type==2).sum()}')
     
     pwr_imb_loss = PowerImbalance(*testset.get_data_means_stds()).to(device)
